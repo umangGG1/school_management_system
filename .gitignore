@@ -1,0 +1,6 @@
+.claude/
+frontend_claude_artifacts/
+node_modules/
+dist/
+.env
+
