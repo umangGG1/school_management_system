@@ -20,10 +20,10 @@ export class SchoolsController {
     return this.schoolsService.findOne(user.schoolId);
   }
 
-  /** PATCH /api/schools/me — SUPER_ADMIN only */
+  /** PATCH /api/schools/me — SUPER_ADMIN or HEAD_TEACHER */
   @Patch('me')
   @UseGuards(RolesGuard)
-  @Roles(UserRole.SUPER_ADMIN)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.HEAD_TEACHER)
   async updateMySchool(
     @CurrentUser() user: JwtPayload,
     @Body() dto: UpdateSchoolDto,

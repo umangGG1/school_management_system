@@ -10,7 +10,7 @@ import { UsersService }   from './users.service';
 import { JwtPayload }     from '../auth/auth.service';
 import { UserRole }       from './entities/user.entity';
 import {
-  CreateUserDto, UpdateUserDto, ListUsersQueryDto,
+  CreateUserDto, UpdateUserDto, UpdateProfileDto, ListUsersQueryDto,
 } from './dto/user.dto';
 
 @Controller('users')
@@ -22,7 +22,17 @@ export class UsersController {
   @Get('me')
   async getMe(@CurrentUser() payload: JwtPayload) {
     const user = await this.usersService.findById(payload.sub);
-    return this.usersService.toPublic(user);
+    return { ...this.usersService.toPublic(user), activeRole: payload.activeRole };
+  }
+
+  /* ── PATCH /api/users/me — any authenticated user (own profile) ──── */
+  @Patch('me')
+  async updateMe(
+    @CurrentUser() payload: JwtPayload,
+    @Body() dto: UpdateProfileDto,
+  ) {
+    const user = await this.usersService.updateSelf(payload.sub, dto);
+    return { ...this.usersService.toPublic(user), activeRole: payload.activeRole };
   }
 
   /* ── GET /api/users — SUPER_ADMIN only ──────────────────────────── */

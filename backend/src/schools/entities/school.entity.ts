@@ -65,6 +65,16 @@ export class School {
   @Column({ nullable: true, default: 'UGX' })
   currency: string;
 
+  // Academic calendar fields (managed by Head Teacher / Admin)
+  @Column({ nullable: true })
+  currentTerm: string;       // e.g. "Term 1"
+
+  @Column({ nullable: true })
+  academicYear: string;      // e.g. "2026"
+
+  @Column({ nullable: true, type: 'int' })
+  currentWeek: number;       // e.g. 8
+
   @Column({ default: true })
   isActive: boolean;
 

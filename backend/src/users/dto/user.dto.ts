@@ -68,6 +68,25 @@ export class UpdateUserDto {
   isActive?: boolean;
 }
 
+/** Used by PATCH /users/me — only safe self-editable fields */
+export class UpdateProfileDto {
+  @IsOptional()
+  @IsString()
+  firstName?: string;
+
+  @IsOptional()
+  @IsString()
+  lastName?: string;
+
+  @IsOptional()
+  @IsEmail()
+  email?: string;
+
+  @IsOptional()
+  @IsString()
+  phone?: string;
+}
+
 export class ListUsersQueryDto {
   @IsOptional()
   @IsString()

@@ -5,7 +5,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, ILike } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { User, UserRole } from './entities/user.entity';
-import { CreateUserDto, UpdateUserDto, ListUsersQueryDto } from './dto/user.dto';
+import { CreateUserDto, UpdateUserDto, UpdateProfileDto, ListUsersQueryDto } from './dto/user.dto';
 
 @Injectable()
 export class UsersService {
@@ -103,6 +103,20 @@ export class UsersService {
   async toggleStatus(id: string): Promise<User> {
     const user = await this.findById(id);
     user.isActive = !user.isActive;
+    return this.userRepo.save(user);
+  }
+
+  /** Update own profile (non-privileged fields only) */
+  async updateSelf(id: string, dto: UpdateProfileDto): Promise<User> {
+    const user = await this.findById(id);
+    if (dto.firstName !== undefined) user.firstName = dto.firstName;
+    if (dto.lastName  !== undefined) user.lastName  = dto.lastName;
+    if (dto.phone     !== undefined) user.phone     = dto.phone;
+    if (dto.email     !== undefined) {
+      const clash = await this.userRepo.findOne({ where: { email: dto.email } });
+      if (clash && clash.id !== id) throw new ConflictException('Email already in use');
+      user.email = dto.email;
+    }
     return this.userRepo.save(user);
   }
 
