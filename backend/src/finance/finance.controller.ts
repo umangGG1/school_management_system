@@ -146,4 +146,27 @@ export class FinanceController {
     const currentYear = new Date().getFullYear().toString();
     return this.financeService.expenseSummary(user.schoolId, term ?? 'Term 1', academicYear ?? currentYear);
   }
+
+  // ── Fee Structure ──────────────────────────────────────────────────────────
+
+  @Get('fee-structure')
+  getFeeStructure(
+    @CurrentUser() user: JwtPayload,
+    @Query('term') term: string,
+    @Query('academicYear') academicYear: string,
+  ) {
+    const currentYear = new Date().getFullYear().toString();
+    return this.financeService.getFeeStructure(user.schoolId, term ?? 'Term 1', academicYear ?? currentYear);
+  }
+
+  @Post('fee-structure')
+  createFeeStructureItem(@CurrentUser() user: JwtPayload, @Body() body: any) {
+    return this.financeService.createFeeStructureItem({ ...body, schoolId: user.schoolId });
+  }
+
+  @Patch('fee-structure/:id')
+  updateFeeStructureItem(@Param('id') id: string, @CurrentUser() user: JwtPayload, @Body() body: any) {
+    return this.financeService.updateFeeStructureItem(id, user.schoolId, body);
+  }
 }
+

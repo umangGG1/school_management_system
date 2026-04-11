@@ -225,4 +225,25 @@ export class FinanceService {
     }
     return { total, byCategory, count: expenses.length };
   }
+
+  // ── Fee Structure ──────────────────────────────────────────────────────────
+
+  async getFeeStructure(schoolId: string, term: string, academicYear: string): Promise<FeeStructure[]> {
+    return this.feeStructureRepo.find({
+      where: { schoolId, term, academicYear },
+      relations: ['class'],
+      order: { category: 'ASC' },
+    });
+  }
+
+  async createFeeStructureItem(data: Partial<FeeStructure>): Promise<FeeStructure> {
+    return this.feeStructureRepo.save(this.feeStructureRepo.create(data));
+  }
+
+  async updateFeeStructureItem(id: string, schoolId: string, data: Partial<FeeStructure>): Promise<FeeStructure> {
+    const item = await this.feeStructureRepo.findOne({ where: { id, schoolId } });
+    if (!item) throw new Error('Fee structure item not found');
+    return this.feeStructureRepo.save({ ...item, ...data });
+  }
 }
+

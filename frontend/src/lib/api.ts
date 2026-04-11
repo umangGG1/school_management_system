@@ -266,3 +266,394 @@ export interface ApiAdminStats {
 export const adminStatsApi = {
   getStats: () => req<ApiAdminStats>('GET', '/admin/stats'),
 };
+
+/* ─── Admin Terms ────────────────────────────────────────────────── */
+export interface ApiTerm {
+  id: string;
+  name: string;
+  startDate: string;
+  endDate: string;
+  weeks: number;
+  status: 'current' | 'upcoming' | 'past';
+}
+
+export const termsApi = {
+  list:   ()                    => req<ApiTerm[]>('GET',   '/admin/terms'),
+  create: (body: Partial<ApiTerm>) => req<ApiTerm>('POST', '/admin/terms', body),
+  update: (id: string, body: Partial<ApiTerm>) => req<ApiTerm>('PATCH', `/admin/terms/${id}`, body),
+};
+
+/* ─── Fee Structure ──────────────────────────────────────────────── */
+export interface ApiFeeStructureItem {
+  id: string;
+  classLevel: string;
+  category: string;
+  tuition: number;
+  boarding: number;
+  meals: number;
+  devLevy: number;
+  total: number;
+  term: string;
+  academicYear: string;
+  isActive: boolean;
+}
+
+export const feeStructureApi = {
+  list:   (term?: string, academicYear?: string) => {
+    const qs = new URLSearchParams();
+    if (term) qs.set('term', term);
+    if (academicYear) qs.set('academicYear', academicYear);
+    const suffix = qs.toString() ? `?${qs}` : '';
+    return req<ApiFeeStructureItem[]>('GET', `/finance/fee-structure${suffix}`);
+  },
+  create: (body: Partial<ApiFeeStructureItem>) => req<ApiFeeStructureItem>('POST', '/finance/fee-structure', body),
+  update: (id: string, body: Partial<ApiFeeStructureItem>) => req<ApiFeeStructureItem>('PATCH', `/finance/fee-structure/${id}`, body),
+};
+
+/* ─── Admin Reports ──────────────────────────────────────────────── */
+export interface ApiReport {
+  id: string;
+  name: string;
+  type: string;
+  generatedAt: string | null;
+  size: string | null;
+  status: 'ready' | 'pending';
+  format?: string;
+}
+
+export const adminReportsApi = {
+  list:     ()                                          => req<ApiReport[]>('GET',  '/admin/reports'),
+  generate: (body: { type: string; term?: string; format?: string }) => req<ApiReport>('POST', '/admin/reports/generate', body),
+};
+
+/* ─── Support Tickets ────────────────────────────────────────────── */
+export interface ApiTicket {
+  id: string;
+  title: string;
+  reporterName: string;
+  reporterRole: string;
+  priority: 'high' | 'medium' | 'low';
+  status: 'open' | 'in_progress' | 'resolved';
+  category: string;
+  createdAt: string;
+}
+
+export const supportApi = {
+  list:   ()                                       => req<ApiTicket[]>('GET',   '/admin/support'),
+  create: (body: Partial<ApiTicket>)               => req<ApiTicket>('POST',  '/admin/support', body),
+  update: (id: string, body: { status?: string; reply?: string }) => req<ApiTicket>('PATCH', `/admin/support/${id}`, body),
+};
+
+/* ─── Integrations ───────────────────────────────────────────────── */
+export interface ApiIntegration {
+  id: string;
+  name: string;
+  status: 'connected' | 'pending' | 'disconnected';
+  lastTested: string | null;
+  icon: string;
+  configured: boolean;
+  testResult?: string;
+  message?: string;
+}
+
+export const integrationsApi = {
+  list: ()            => req<ApiIntegration[]>('GET',  '/admin/integrations'),
+  test: (id: string)  => req<ApiIntegration>('POST', `/admin/integrations/${id}/test`),
+};
+
+/* ═══════════════════════════════════════════════════════════
+   HEAD TEACHER APIs
+═══════════════════════════════════════════════════════════ */
+
+/* ─── HT Dashboard ───────────────────────────────────────── */
+export interface HtDashboardStats {
+  stats: { totalStudents: number; feeCollectionRate: number; staffPresent: number; staffTotal: number; avgPerformance: number };
+  feeCollection: { termTarget: number; collected: number; collectionRate: number; byClass: any[] };
+  classPerformance: any[];
+  boarding: any;
+  security: any;
+  medical: any;
+  pendingApprovals: any[];
+  recentActivity: any[];
+  recentAnnouncements: any[];
+  upcomingEvents: any[];
+}
+
+export const htDashboardApi = {
+  getSummary: (term?: string, academicYear?: string) => {
+    const qs = new URLSearchParams();
+    if (term) qs.set('term', term);
+    if (academicYear) qs.set('academicYear', academicYear);
+    const suffix = qs.toString() ? `?${qs}` : '';
+    return req<HtDashboardStats>('GET', `/dashboard/head-teacher${suffix}`);
+  },
+  getAcademic:  (term?: string, academicYear?: string) => {
+    const qs = new URLSearchParams();
+    if (term) qs.set('term', term); if (academicYear) qs.set('academicYear', academicYear);
+    return req<any>('GET', `/dashboard/academic${qs.toString() ? '?' + qs : ''}`);
+  },
+  getFinance:   (term?: string, academicYear?: string) => {
+    const qs = new URLSearchParams();
+    if (term) qs.set('term', term); if (academicYear) qs.set('academicYear', academicYear);
+    return req<any>('GET', `/dashboard/finance${qs.toString() ? '?' + qs : ''}`);
+  },
+  getBoarding:  () => req<any>('GET', '/dashboard/boarding'),
+  getSecurity:  (date?: string) => req<any>('GET', `/dashboard/security${date ? '?date=' + date : ''}`),
+  getStaff:     () => req<any>('GET', '/dashboard/staff'),
+};
+
+/* ─── Announcements ──────────────────────────────────────── */
+export interface ApiAnnouncement {
+  id: string;
+  schoolId: string;
+  title: string;
+  body: string;
+  category: string;     // GENERAL | ACADEMIC | BOARDING | FINANCE | DISCIPLINE | EMERGENCY
+  audience: string;     // ALL_STAFF | ALL_STUDENTS | ALL_PARENTS | ALL | SPECIFIC_CLASS
+  isPinned: boolean;
+  publishAt: string | null;
+  expiresAt: string | null;
+  createdById: string;
+  createdBy?: { id: string; firstName: string; lastName: string };
+  isArchived: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateAnnouncementPayload {
+  title: string;
+  body: string;
+  category?: string;
+  audience?: string;
+  isPinned?: boolean;
+  publishAt?: string;
+  expiresAt?: string;
+  targetClassId?: string;
+}
+
+export const announcementsApi = {
+  list:    (pinned?: boolean) => {
+    const suffix = pinned !== undefined ? `?pinned=${pinned}` : '';
+    return req<ApiAnnouncement[]>('GET', `/announcements${suffix}`);
+  },
+  listPinned: () => req<ApiAnnouncement[]>('GET', '/announcements/pinned'),
+  get:     (id: string) => req<ApiAnnouncement>('GET', `/announcements/${id}`),
+  create:  (payload: CreateAnnouncementPayload) => req<ApiAnnouncement>('POST', '/announcements', payload),
+  update:  (id: string, payload: Partial<CreateAnnouncementPayload>) =>
+    req<ApiAnnouncement>('PATCH', `/announcements/${id}`, payload),
+  delete:  (id: string) => req<{ success: boolean }>('DELETE', `/announcements/${id}`),
+};
+
+/* ─── Calendar ───────────────────────────────────────────── */
+export interface ApiCalendarEvent {
+  id: string;
+  schoolId: string;
+  title: string;
+  description: string | null;
+  date: string;         // ISO date string
+  endDate: string | null;
+  type: string;         // ACADEMIC | EXAM | HOLIDAY | MEETING | COMMUNITY | SPORTS | OTHER
+  isSchoolWide: boolean;
+  classId: string | null;
+  notes: string | null;
+  isRecurring: boolean;
+  createdById: string;
+  createdAt: string;
+}
+
+export interface CreateCalendarEventPayload {
+  title: string;
+  description?: string;
+  date: string;
+  endDate?: string;
+  type?: string;
+  isSchoolWide?: boolean;
+  classId?: string;
+  notes?: string;
+}
+
+export const calendarApi = {
+  list:      (term?: string, academicYear?: string) => {
+    const qs = new URLSearchParams();
+    if (term) qs.set('term', term); if (academicYear) qs.set('academicYear', academicYear);
+    return req<ApiCalendarEvent[]>('GET', `/calendar${qs.toString() ? '?' + qs : ''}`);
+  },
+  upcoming:  (days?: number) => req<ApiCalendarEvent[]>('GET', `/calendar/upcoming${days ? '?days=' + days : ''}`),
+  term:      (term: string, academicYear: string) =>
+    req<ApiCalendarEvent[]>('GET', `/calendar/term?term=${encodeURIComponent(term)}&academicYear=${encodeURIComponent(academicYear)}`),
+  get:       (id: string) => req<ApiCalendarEvent>('GET', `/calendar/${id}`),
+  create:    (payload: CreateCalendarEventPayload) => req<ApiCalendarEvent>('POST', '/calendar', payload),
+  update:    (id: string, payload: Partial<CreateCalendarEventPayload>) =>
+    req<ApiCalendarEvent>('PATCH', `/calendar/${id}`, payload),
+  delete:    (id: string) => req<{ success: boolean }>('DELETE', `/calendar/${id}`),
+};
+
+/* ─── Messages ───────────────────────────────────────────── */
+export interface ApiMessage {
+  id: string;
+  schoolId: string;
+  fromUserId: string;
+  toUserId: string | null;
+  subject: string;
+  body: string;
+  audience: string | null;    // ALL_STAFF | ALL_HOD | BOARDING_STAFF | etc.
+  isRead: boolean;
+  readAt: string | null;
+  parentId: string | null;
+  from?: { id: string; firstName: string; lastName: string; roles: string[] };
+  createdAt: string;
+}
+
+export interface SendMessagePayload {
+  toUserId?: string;
+  audience?: string;
+  subject: string;
+  body: string;
+  parentId?: string;
+}
+
+export const messagesApi = {
+  inbox:        (limit = 20, skip = 0) =>
+    req<ApiMessage[]>('GET', `/messages/inbox?limit=${limit}&skip=${skip}`),
+  sent:         (limit = 20, skip = 0) =>
+    req<ApiMessage[]>('GET', `/messages/sent?limit=${limit}&skip=${skip}`),
+  unreadCount:  () => req<{ count: number }>('GET', '/messages/unread-count'),
+  get:          (id: string) => req<ApiMessage>('GET', `/messages/${id}`),
+  send:         (payload: SendMessagePayload) => req<ApiMessage>('POST', '/messages', payload),
+  markRead:     (id: string) => req<ApiMessage>('PATCH', `/messages/${id}/read`),
+  markAllRead:  () => req<{ updated: number }>('PATCH', '/messages/mark-all-read'),
+  delete:       (id: string) => req<{ success: boolean }>('DELETE', `/messages/${id}`),
+};
+
+/* ─── HT Staff View ──────────────────────────────────────── */
+export interface ApiStaffMember {
+  id: string;
+  employeeNumber: string;
+  firstName: string;
+  lastName: string;
+  position: string;
+  department: string;
+  phone: string;
+  isActive: boolean;
+  schoolId: string;
+  createdAt: string;
+}
+
+export interface ApiStaffAttendanceSummary {
+  total: number;
+  present: number;
+  absent: number;
+  late: number;
+  onLeave: number;
+}
+
+export interface CreateStaffActionPayload {
+  staffId: string;
+  type: string;         // WARNING | COMMENDATION | LEAVE_APPROVED | LEAVE_REJECTED | PERFORMANCE_REVIEW | OTHER
+  description: string;
+  notes?: string;
+}
+
+export const htStaffApi = {
+  list:           () => req<ApiStaffMember[]>('GET', '/staff'),
+  getAttendance:  () => req<ApiStaffAttendanceSummary>('GET', '/staff/attendance/today'),
+  getLeaves:      (status?: string) =>
+    req<any[]>('GET', `/staff/leave/requests${status ? '?status=' + status : ''}`),
+  approveLeave:   (id: string) => req<any>('PATCH', `/staff/leave/${id}/approve`),
+  rejectLeave:    (id: string, reason: string) =>
+    req<any>('PATCH', `/staff/leave/${id}/reject`, { rejectionReason: reason }),
+  recordAction:   (payload: CreateStaffActionPayload) => req<any>('POST', '/staff/actions', payload),
+  getActions:     () => req<any[]>('GET', '/staff/actions'),
+};
+
+/* ─── HT Students View ───────────────────────────────────── */
+export interface ApiStudentDiscipline {
+  id: string;
+  studentId: string;
+  student?: any;
+  actionType: string;   // WRITTEN_WARNING | SUSPENSION | EXPULSION | PARENT_SUMMONS | OTHER
+  offence: string;
+  notes: string | null;
+  status: string;       // PENDING | RESOLVED | ESCALATED
+  issuedById: string;
+  issuedBy?: any;
+  createdAt: string;
+}
+
+export interface CreateDisciplinePayload {
+  actionType: string;
+  offence: string;
+  notes?: string;
+  notify?: string;  // PARENT_AND_CLASS_TEACHER | PARENT_ONLY | CLASS_TEACHER_ONLY | ALL
+}
+
+export const htStudentsApi = {
+  list:               (page = 1, limit = 20) =>
+    req<{ data: any[]; total: number }>('GET', `/students?page=${page}&limit=${limit}`),
+  get:                (id: string) => req<any>('GET', `/students/${id}`),
+  getEnrollmentCount: () => req<{ total: number }>('GET', '/students/count'),
+  getAllDiscipline:    (status?: string) =>
+    req<ApiStudentDiscipline[]>('GET', `/students/discipline${status ? '?status=' + status : ''}`),
+  getStudentDiscipline: (id: string) =>
+    req<ApiStudentDiscipline[]>('GET', `/students/${id}/discipline`),
+  recordDiscipline:   (studentId: string, payload: CreateDisciplinePayload) =>
+    req<ApiStudentDiscipline>('POST', `/students/${studentId}/discipline`, payload),
+};
+
+/* ─── HT Reports ─────────────────────────────────────────── */
+export interface HtReportQuery {
+  term?: string;
+  academicYear?: string;
+  classId?: string;
+}
+
+export const htReportsApi = {
+  academic: (query?: HtReportQuery) => {
+    const qs = new URLSearchParams();
+    if (query?.term) qs.set('term', query.term);
+    if (query?.academicYear) qs.set('academicYear', query.academicYear);
+    if (query?.classId) qs.set('classId', query.classId);
+    return req<any>('GET', `/reports/academic${qs.toString() ? '?' + qs : ''}`);
+  },
+  finance: (query?: HtReportQuery) => {
+    const qs = new URLSearchParams();
+    if (query?.term) qs.set('term', query.term);
+    if (query?.academicYear) qs.set('academicYear', query.academicYear);
+    return req<any>('GET', `/reports/finance${qs.toString() ? '?' + qs : ''}`);
+  },
+  boarding: () => req<any>('GET', '/reports/boarding'),
+  admin:    (query?: HtReportQuery) => {
+    const qs = new URLSearchParams();
+    if (query?.term) qs.set('term', query.term);
+    if (query?.academicYear) qs.set('academicYear', query.academicYear);
+    return req<any>('GET', `/reports/admin${qs.toString() ? '?' + qs : ''}`);
+  },
+};
+
+/* ─── HT Security / Gate Log ─────────────────────────────── */
+export const htSecurityApi = {
+  overview:   () => req<any>('GET', '/dashboard/security'),
+  gateLog:    (date?: string) => req<any[]>('GET', `/security/gate-log${date ? '?date=' + date : ''}`),
+  incidents:  (status?: string) =>
+    req<any[]>('GET', `/security/incidents${status ? '?status=' + status : ''}`),
+};
+
+/* ─── HT Boarding ────────────────────────────────────────── */
+export const htBoardingApi = {
+  summary:     () => req<any>('GET', '/dashboard/boarding'),
+  dorms:       () => req<any[]>('GET', '/boarding/dorms'),
+  missingStudents: () => req<any[]>('GET', '/boarding/missing-students'),
+  leaves:      (status?: string) =>
+    req<any[]>('GET', `/boarding/leaves${status ? '?status=' + status : ''}`),
+};
+
+/* ─── HT Profile & Settings (re-exported for clarity) ────── */
+export const htSettingsApi = {
+  getSchool:    () => req<ApiSchool>('GET', '/schools/me'),
+  updateSchool: (payload: UpdateSchoolPayload & { currentTerm?: string; currentWeek?: number; academicYear?: string }) =>
+    req<ApiSchool>('PATCH', '/schools/me', payload),
+  getProfile:   () => req<any>('GET', '/users/me'),
+  updateProfile: (payload: { firstName?: string; lastName?: string; email?: string; phone?: string }) =>
+    req<any>('PATCH', '/users/me', payload),
+};
+

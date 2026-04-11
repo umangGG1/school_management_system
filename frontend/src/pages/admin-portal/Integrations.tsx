@@ -1,29 +1,58 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { Card, CardHeader } from '../../components/ui/Card';
 import { Badge }      from '../../components/ui/Badge';
 import { Btn }        from '../../components/ui/Btn';
+import { integrationsApi, type ApiIntegration } from '../../lib/api';
 
-const SERVICES = [
-  { id:'sms',      name:'SMS Gateway (Africa\'s Talking)', status:'connected', lastTest:'Mar 07 09:00', key:'AT-LIVE-xxxxxxx', icon:'📱' },
-  { id:'email',    name:'Email (SMTP / Gmail)',             status:'connected', lastTest:'Mar 07 09:00', key:'smtp.gmail.com',  icon:'📧' },
-  { id:'payments', name:'Mobile Money (MTN MoMo)',          status:'connected', lastTest:'Mar 07 09:01', key:'MTN-*****1234',   icon:'💳' },
-  { id:'backup',   name:'Cloud Backup (Google Drive)',      status:'connected', lastTest:'Mar 06 23:00', key:'smissi-backup@…', icon:'☁️' },
-  { id:'moes',     name:'MoES EMIS Data Sync',             status:'pending',   lastTest:'Never',        key:'API key required',icon:'🏛️' },
-  { id:'uca',      name:'UCA Payroll Integration',          status:'disconnected',lastTest:'Feb 15',    key:'Not configured',  icon:'💰' },
+/* ─── Seed fallback ───────────────────────────────────────────────── */
+const SEED: ApiIntegration[] = [
+  { id: 'sms',      name: "SMS Gateway (Africa's Talking)", status: 'connected',    lastTested: new Date().toISOString(), icon: '📱', configured: true  },
+  { id: 'email',    name: 'Email (SMTP / Gmail)',            status: 'connected',    lastTested: new Date().toISOString(), icon: '📧', configured: true  },
+  { id: 'payments', name: 'Mobile Money (MTN MoMo)',         status: 'connected',    lastTested: new Date().toISOString(), icon: '💳', configured: true  },
+  { id: 'backup',   name: 'Cloud Backup (Google Drive)',     status: 'connected',    lastTested: new Date().toISOString(), icon: '☁️', configured: true  },
+  { id: 'moes',     name: 'MoES EMIS Data Sync',            status: 'pending',      lastTested: null,                     icon: '🏛️', configured: false },
+  { id: 'uca',      name: 'UCA Payroll Integration',         status: 'disconnected', lastTested: null,                     icon: '💰', configured: false },
 ];
 
-const SEV: Record<string,'success'|'amber'|'red'> = {
+const SEV: Record<string, 'success' | 'amber' | 'red'> = {
   connected: 'success', pending: 'amber', disconnected: 'red',
 };
 
-export default function AdminIntegrations() {
-  const [testing, setTesting] = useState<string | null>(null);
+const WEBHOOKS = [
+  { event: 'student.enrolled',       url: 'https://hooks.smissi.ac.ug/enroll', active: true  },
+  { event: 'fee.payment.received',   url: 'https://hooks.smissi.ac.ug/fees',   active: true  },
+  { event: 'exam.results.published', url: '(not configured)',                   active: false },
+  { event: 'user.created',           url: 'https://hooks.smissi.ac.ug/users',  active: true  },
+];
 
-  const runTest = (id: string) => {
+export default function AdminIntegrations() {
+  const [services, setServices] = useState<ApiIntegration[]>(SEED);
+  const [testing,  setTesting]  = useState<string | null>(null);
+  const [offline,  setOffline]  = useState(false);
+
+  useEffect(() => {
+    integrationsApi.list()
+      .then(s => { if (s.length) setServices(s); setOffline(false); })
+      .catch(() => setOffline(true));
+  }, []);
+
+  const runTest = async (id: string) => {
     setTesting(id);
-    setTimeout(() => setTesting(null), 1800);
+    try {
+      const result = await integrationsApi.test(id);
+      setServices(prev => prev.map(s => s.id === id ? { ...s, ...result } : s));
+    } catch {
+      // Optimistic: just update lastTested timestamp
+      setServices(prev => prev.map(s => s.id === id ? { ...s, lastTested: new Date().toISOString() } : s));
+    } finally {
+      setTesting(null);
+    }
   };
+
+  const fmtDate = (iso: string | null) => iso
+    ? new Date(iso).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+    : 'Never';
 
   return (
     <div>
@@ -33,8 +62,14 @@ export default function AdminIntegrations() {
         actions={[{ label: '+ Add Integration', onClick: () => {}, variant: 'primary' }]}
       />
 
+      {offline && (
+        <div style={{ padding: '9px 14px', marginBottom: 12, borderRadius: 8, background: '#fffbeb', border: '1px solid #fcd34d', fontSize: 11, color: '#92400e' }}>
+          ⚠️ Backend not connected — showing demo data.
+        </div>
+      )}
+
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: 16, marginBottom: 20 }}>
-        {SERVICES.map(s => (
+        {services.map(s => (
           <Card key={s.id}>
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
               <div style={{
@@ -49,10 +84,14 @@ export default function AdminIntegrations() {
                     {s.status === 'connected' ? '🟢 Connected' : s.status === 'pending' ? '🟡 Pending' : '🔴 Disconnected'}
                   </Badge>
                 </div>
-                <div style={{ fontSize: 11, color: '#64748b', marginBottom: 2 }}>
-                  API Key: <span style={{ fontFamily: 'monospace', color: '#94a3b8' }}>{s.key}</span>
+                <div style={{ fontSize: 10, color: '#94a3b8', marginBottom: 2 }}>
+                  Last tested: {fmtDate(s.lastTested)}
                 </div>
-                <div style={{ fontSize: 10, color: '#94a3b8' }}>Last tested: {s.lastTest}</div>
+                {s.testResult && (
+                  <div style={{ fontSize: 10, color: s.testResult === 'success' ? '#10b981' : '#ef4444', marginBottom: 4 }}>
+                    {s.message}
+                  </div>
+                )}
                 <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
                   <Btn variant={s.status === 'connected' ? 'ghost' : 'primary'} size="sm" onClick={() => runTest(s.id)}>
                     {testing === s.id ? '⏳ Testing…' : s.status === 'connected' ? '🔁 Re-test' : '🔌 Connect'}
@@ -73,12 +112,7 @@ export default function AdminIntegrations() {
         <div style={{ fontSize: 12, color: '#64748b', marginBottom: 12 }}>
           Events fired when key actions happen in SMISSI. Set endpoint URLs to receive live data.
         </div>
-        {[
-          { event: 'student.enrolled',      url: 'https://hooks.smissi.ac.ug/enroll', active: true  },
-          { event: 'fee.payment.received',  url: 'https://hooks.smissi.ac.ug/fees',   active: true  },
-          { event: 'exam.results.published',url: '(not configured)',                   active: false },
-          { event: 'user.created',          url: 'https://hooks.smissi.ac.ug/users',  active: true  },
-        ].map(w => (
+        {WEBHOOKS.map(w => (
           <div key={w.event} style={{
             display: 'flex', alignItems: 'center', gap: 12,
             padding: '8px 10px', borderRadius: 8, marginBottom: 6,

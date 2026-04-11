@@ -39,7 +39,7 @@ export class ApprovalsController {
   /** GET /api/approvals — all approvals, optionally filtered by status */
   @Get()
   @UseGuards(RolesGuard)
-  @Roles(UserRole.SUPER_ADMIN)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.HEAD_TEACHER, UserRole.DEPUTY_HEAD)
   getAll(
     @CurrentUser() user: JwtPayload,
     @Query('status') status?: ApprovalStatus,

@@ -1,32 +1,63 @@
+import { useState, useEffect } from 'react';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { Card, CardHeader } from '../../components/ui/Card';
 import { Badge }      from '../../components/ui/Badge';
 import { Btn }        from '../../components/ui/Btn';
+import { feeStructureApi, type ApiFeeStructureItem } from '../../lib/api';
 
-const FEE_STRUCTURE = [
-  { form: 'S.1', category: 'Day',      tution: 320_000, boarding: 0,         meals: 0,         dev: 50_000, total: 370_000 },
-  { form: 'S.1', category: 'Boarding', tution: 320_000, boarding: 280_000,   meals: 150_000,   dev: 50_000, total: 800_000 },
-  { form: 'S.2', category: 'Day',      tution: 330_000, boarding: 0,         meals: 0,         dev: 50_000, total: 380_000 },
-  { form: 'S.2', category: 'Boarding', tution: 330_000, boarding: 280_000,   meals: 150_000,   dev: 50_000, total: 810_000 },
-  { form: 'S.3', category: 'Day',      tution: 350_000, boarding: 0,         meals: 0,         dev: 60_000, total: 410_000 },
-  { form: 'S.3', category: 'Boarding', tution: 350_000, boarding: 290_000,   meals: 155_000,   dev: 60_000, total: 855_000 },
-  { form: 'S.4', category: 'Day',      tution: 360_000, boarding: 0,         meals: 0,         dev: 60_000, total: 420_000 },
-  { form: 'S.4', category: 'Boarding', tution: 360_000, boarding: 290_000,   meals: 155_000,   dev: 60_000, total: 865_000 },
+/* ─── Seed fallback ───────────────────────────────────────────────── */
+const SEED_STRUCTURE = [
+  { form: 'S.1', category: 'Day',      tuition: 320_000, boarding: 0,       meals: 0,       devLevy: 50_000, total: 370_000 },
+  { form: 'S.1', category: 'Boarding', tuition: 320_000, boarding: 280_000, meals: 150_000, devLevy: 50_000, total: 800_000 },
+  { form: 'S.2', category: 'Day',      tuition: 330_000, boarding: 0,       meals: 0,       devLevy: 50_000, total: 380_000 },
+  { form: 'S.2', category: 'Boarding', tuition: 330_000, boarding: 280_000, meals: 150_000, devLevy: 50_000, total: 810_000 },
+  { form: 'S.3', category: 'Day',      tuition: 350_000, boarding: 0,       meals: 0,       devLevy: 60_000, total: 410_000 },
+  { form: 'S.3', category: 'Boarding', tuition: 350_000, boarding: 290_000, meals: 155_000, devLevy: 60_000, total: 855_000 },
+  { form: 'S.4', category: 'Day',      tuition: 360_000, boarding: 0,       meals: 0,       devLevy: 60_000, total: 420_000 },
+  { form: 'S.4', category: 'Boarding', tuition: 360_000, boarding: 290_000, meals: 155_000, devLevy: 60_000, total: 865_000 },
 ];
 
 const LEVIES = [
-  { name: 'Library Levy',        amount: 15_000, applies: 'All students', status: 'active' },
-  { name: 'Sports Levy',         amount: 20_000, applies: 'All students', status: 'active' },
-  { name: 'ICT Levy',            amount: 25_000, applies: 'S.3 & S.4',   status: 'active' },
-  { name: 'Laboratory Levy',     amount: 30_000, applies: 'Science stream',status: 'active' },
-  { name: 'UNEB Registration',   amount: 85_000, applies: 'S.4 only',     status: 'active' },
-  { name: 'Uniform Deposit',     amount: 45_000, applies: 'S.1 only',     status: 'active' },
-  { name: 'Medical Levy',        amount: 10_000, applies: 'All students', status: 'active' },
+  { name: 'Library Levy',      amount: 15_000, applies: 'All students',  status: 'active' },
+  { name: 'Sports Levy',       amount: 20_000, applies: 'All students',  status: 'active' },
+  { name: 'ICT Levy',          amount: 25_000, applies: 'S.3 & S.4',    status: 'active' },
+  { name: 'Laboratory Levy',   amount: 30_000, applies: 'Science stream',status: 'active' },
+  { name: 'UNEB Registration', amount: 85_000, applies: 'S.4 only',     status: 'active' },
+  { name: 'Uniform Deposit',   amount: 45_000, applies: 'S.1 only',     status: 'active' },
+  { name: 'Medical Levy',      amount: 10_000, applies: 'All students',  status: 'active' },
 ];
 
 const fmt = (n: number) => `UGX ${n.toLocaleString()}`;
 
+type FeeRow = {
+  form?: string; classLevel?: string;
+  category?: string;
+  tuition?: number; total?: number;
+  boarding?: number; meals?: number; devLevy?: number;
+};
+
 export default function AdminFees() {
+  const [structure, setStructure] = useState<FeeRow[]>(SEED_STRUCTURE);
+  const [offline,   setOffline]   = useState(false);
+  const [loading,   setLoading]   = useState(false);
+
+  useEffect(() => {
+    setLoading(true);
+    feeStructureApi.list('Term 1', new Date().getFullYear().toString())
+      .then(items => {
+        if (Array.isArray(items) && items.length) {
+          setStructure(items.map(i => ({
+            form: i.classLevel, category: i.category,
+            tuition: i.tuition, boarding: i.boarding,
+            meals: i.meals, devLevy: i.devLevy, total: i.total,
+          })));
+        }
+        setOffline(false);
+      })
+      .catch(() => setOffline(true))
+      .finally(() => setLoading(false));
+  }, []);
+
   return (
     <div>
       <PageHeader
@@ -38,90 +69,84 @@ export default function AdminFees() {
         ]}
       />
 
-      {/* Main fee table */}
-      <Card>
-        <CardHeader title="📋 Tuition & Boarding Schedule" />
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-            <thead>
-              <tr style={{ borderBottom: '2px solid #f1f5f9', background: '#f8fafc' }}>
-                {['Form','Category','Tuition','Boarding','Meals','Dev Levy','Total / Term'].map(h => (
-                  <th key={h} style={{ padding: '10px 12px', textAlign: h === 'Category' || h === 'Form' ? 'left' : 'right', color: '#64748b', fontWeight: 600 }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {FEE_STRUCTURE.map((f, i) => (
-                <tr key={i} style={{ borderBottom: '1px solid #f1f5f9' }}
-                  onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#fafbfc'}
-                  onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = ''}
-                >
-                  <td style={{ padding: '10px 12px', fontWeight: 700, color: '#1e293b' }}>{f.form}</td>
-                  <td style={{ padding: '10px 12px' }}>
-                    <Badge variant={f.category === 'Day' ? 'blue' : 'indigo'} size="sm">
-                      {f.category === 'Day' ? '☀️ Day' : '🏠 Boarding'}
-                    </Badge>
-                  </td>
-                  {[f.tution, f.boarding, f.meals, f.dev].map((v, idx) => (
-                    <td key={idx} style={{ padding: '10px 12px', textAlign: 'right', color: v === 0 ? '#cbd5e1' : '#1e293b' }}>
-                      {v === 0 ? '—' : fmt(v)}
-                    </td>
-                  ))}
-                  <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 800, color: '#6366f1', fontSize: 13 }}>
-                    {fmt(f.total)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {offline && (
+        <div style={{ padding: '9px 14px', marginBottom: 12, borderRadius: 8, background: '#fffbeb', border: '1px solid #fcd34d', fontSize: 11, color: '#92400e' }}>
+          ⚠️ Backend not connected — showing demo data.
         </div>
-      </Card>
+      )}
 
-      {/* Additional levies */}
-      <div style={{ marginTop: 18, display: 'grid', gridTemplateColumns: '1fr 320px', gap: 18 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 18 }}>
+        {/* Main table */}
         <Card>
-          <CardHeader title="📦 Additional Levies" />
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-            <thead>
-              <tr style={{ borderBottom: '2px solid #f1f5f9' }}>
-                {['Levy','Amount','Applies To','Status'].map(h => (
-                  <th key={h} style={{ padding: '8px 10px', textAlign: h === 'Amount' ? 'right' : 'left', color: '#94a3b8', fontWeight: 600 }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {LEVIES.map(l => (
-                <tr key={l.name} style={{ borderBottom: '1px solid #f8fafc' }}>
-                  <td style={{ padding: '9px 10px', fontWeight: 600, color: '#1e293b' }}>{l.name}</td>
-                  <td style={{ padding: '9px 10px', textAlign: 'right', fontWeight: 700, color: '#6366f1' }}>{fmt(l.amount)}</td>
-                  <td style={{ padding: '9px 10px', color: '#64748b' }}>{l.applies}</td>
-                  <td style={{ padding: '9px 10px' }}>
-                    <Badge variant="success" size="sm">Active</Badge>
-                  </td>
+          <CardHeader title="📋 Tuition & Boarding Structure" />
+          {loading ? <div style={{ textAlign: 'center', padding: 32, color: '#94a3b8' }}>Loading…</div> : (
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+              <thead>
+                <tr style={{ borderBottom: '2px solid #f1f5f9' }}>
+                  {['Form', 'Category', 'Tuition', 'Boarding', 'Meals', 'Dev Levy', 'TOTAL'].map(h => (
+                    <th key={h} style={{ padding: '8px 10px', textAlign: h === 'Form' || h === 'Category' ? 'left' : 'right', color: '#94a3b8', fontWeight: 600 }}>{h}</th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {structure.map((row, i) => {
+                  const form = row.form ?? row.classLevel ?? '—';
+                  const isBoarding = (row.category ?? '') === 'Boarding';
+                  return (
+                    <tr key={i} style={{ borderBottom: '1px solid #f8fafc', background: isBoarding ? '#fafafa' : '#fff' }}>
+                      <td style={{ padding: '10px 10px', fontWeight: 700, color: '#1e293b' }}>{form}</td>
+                      <td style={{ padding: '10px 10px' }}>
+                        <Badge variant={isBoarding ? 'blue' : 'success'} size="sm">{row.category}</Badge>
+                      </td>
+                      <td style={{ padding: '10px 10px', textAlign: 'right', color: '#475569' }}>{fmt(row.tuition ?? 0)}</td>
+                      <td style={{ padding: '10px 10px', textAlign: 'right', color: '#475569' }}>{fmt(row.boarding ?? 0)}</td>
+                      <td style={{ padding: '10px 10px', textAlign: 'right', color: '#475569' }}>{fmt(row.meals ?? 0)}</td>
+                      <td style={{ padding: '10px 10px', textAlign: 'right', color: '#475569' }}>{fmt(row.devLevy ?? 0)}</td>
+                      <td style={{ padding: '10px 10px', textAlign: 'right', fontWeight: 800, color: '#6366f1' }}>{fmt(row.total ?? 0)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
         </Card>
 
+        {/* Levies */}
         <Card>
-          <CardHeader title="💰 Collection Summary" />
-          {[
-            { label: 'Target (Term 1)',  value: 'UGX 92.4M', color: '#1e293b'  },
-            { label: 'Collected',        value: 'UGX 77.2M', color: '#10b981'  },
-            { label: 'Outstanding',      value: 'UGX 15.2M', color: '#ef4444'  },
-            { label: 'Collection Rate',  value: '83.5%',     color: '#6366f1'  },
-            { label: 'Defaulters',       value: '38 students',color: '#f59e0b' },
-          ].map(s => (
-            <div key={s.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 0', borderBottom: '1px solid #f1f5f9', alignItems: 'center' }}>
-              <span style={{ fontSize: 12, color: '#64748b' }}>{s.label}</span>
-              <span style={{ fontSize: 13, fontWeight: 700, color: s.color }}>{s.value}</span>
-            </div>
-          ))}
+          <CardHeader title="⚖️ Levies & Charges" />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {LEVIES.map(l => (
+              <div key={l.name} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '9px 10px', borderRadius: 8, background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: '#1e293b' }}>{l.name}</div>
+                  <div style={{ fontSize: 10, color: '#94a3b8' }}>{l.applies}</div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: '#6366f1' }}>{fmt(l.amount)}</div>
+                  <Badge variant="success" size="sm">{l.status}</Badge>
+                </div>
+              </div>
+            ))}
+          </div>
           <div style={{ marginTop: 12 }}>
-            <Btn variant="primary" size="sm" onClick={() => {}}>View Fee Reports →</Btn>
+            <Btn variant="ghost" size="sm" onClick={() => {}}>+ Add Levy</Btn>
           </div>
         </Card>
+      </div>
+
+      {/* Summary */}
+      <div style={{ marginTop: 18, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 14 }}>
+        {[
+          { label: 'Avg Day Fee (S.1–S.4)',      value: fmt(Math.round(structure.filter(r => (r.category ?? '') === 'Day').reduce((s, r) => s + (r.total ?? 0), 0) / Math.max(structure.filter(r => (r.category ?? '') === 'Day').length, 1))) },
+          { label: 'Avg Boarding Fee (S.1–S.4)', value: fmt(Math.round(structure.filter(r => (r.category ?? '') === 'Boarding').reduce((s, r) => s + (r.total ?? 0), 0) / Math.max(structure.filter(r => (r.category ?? '') === 'Boarding').length, 1))) },
+          { label: 'Total Levies',               value: fmt(LEVIES.reduce((s, l) => s + l.amount, 0)) },
+          { label: 'Structures Defined',          value: `${structure.length}` },
+        ].map(s => (
+          <div key={s.label} style={{ padding: '14px', borderRadius: 10, border: '1px solid #e2e8f0', background: '#fff', textAlign: 'center' }}>
+            <div style={{ fontSize: 15, fontWeight: 800, color: '#6366f1', marginBottom: 2 }}>{s.value}</div>
+            <div style={{ fontSize: 10, color: '#64748b' }}>{s.label}</div>
+          </div>
+        ))}
       </div>
     </div>
   );
