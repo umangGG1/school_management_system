@@ -1,6 +1,6 @@
+import { useNavigate } from 'react-router-dom';
 import { StatCard } from '../../components/ui/StatCard';
 import { Chip } from '../../components/ui/Chip';
-import { useToast } from '../../contexts/ToastContext';
 
 const RESULTS = [
   { cls: 'S6A', top: '96%', avg: '87%', pass: 100, passV: 'green' as const, below: 0, trend: '↑' },
@@ -12,7 +12,7 @@ const RESULTS = [
 ];
 
 export default function HTResults() {
-  const { toast } = useToast();
+  const navigate = useNavigate();
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -20,7 +20,7 @@ export default function HTResults() {
           <h2 className="text-[18px] font-bold text-gray-900">Results & Examinations</h2>
           <p className="text-[13px] text-gray-400 mt-1">Term 1, 2026 · UNEB Inspection in 6 days</p>
         </div>
-        <button onClick={() => toast('Opening Exam Officer Portal...', 'info')} className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg">Exam Office →</button>
+        <button onClick={() => navigate('/exam-officer/dashboard')} className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg">Exam Office →</button>
       </div>
 
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4 mb-6">

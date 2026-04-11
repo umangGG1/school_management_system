@@ -42,7 +42,7 @@ export default function HTStudents() {
           <p className="text-[13px] text-gray-400 mt-1">1,247 enrolled · Term 1, 2026</p>
         </div>
         <div className="flex gap-2.5">
-          <button onClick={() => toast('Opening admissions portal...', 'info')} className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 shadow-sm">📋 Admissions</button>
+          <button onClick={() => navigate('/ht/students')} className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 shadow-sm">📋 Admissions</button>
           <button onClick={() => setActionOpen(true)} className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg">⚠️ Student Action</button>
         </div>
       </div>
@@ -70,7 +70,7 @@ export default function HTStudents() {
                     <td className="px-5 py-3 text-[13px] text-gray-600">{c.students}</td>
                     <td className="px-5 py-3 text-[13px] text-gray-400">{c.streams}</td>
                     <td className="px-5 py-3"><Chip variant={c.chipVariant}>{c.pct}%</Chip></td>
-                    <td className="px-5 py-3"><button onClick={() => toast(`Viewing ${c.cls}...`, 'info')} className="px-3 py-1.5 text-[12px] font-semibold text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200">View</button></td>
+                    <td className="px-5 py-3"><button onClick={() => navigate('/ht/results')} className="px-3 py-1.5 text-[12px] font-semibold text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200">View</button></td>
                   </tr>
                 ))}
               </tbody>
@@ -82,12 +82,12 @@ export default function HTStudents() {
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-[15px] font-bold text-gray-900">⚠️ Pending Student Issues</h3>
-            <button onClick={() => toast('Opening dorm master portal...', 'info')} className="text-[12px] font-semibold text-indigo-600 hover:bg-indigo-50 px-2 py-1 rounded-md">Dorm →</button>
+            <button onClick={() => navigate('/ht/boarding')} className="text-[12px] font-semibold text-indigo-600 hover:bg-indigo-50 px-2 py-1 rounded-md">Dorm →</button>
           </div>
           <AlertItem dot="red" text="3 students missing — not returned from exeat" meta="Boarding · S4B" actionLabel="Action" onAction={() => setActionOpen(true)} />
           <AlertItem dot="amber" text="Okwir James — disciplinary case pending" meta="S3A · Fighting" actionLabel="Review" onAction={() => setActionOpen(true)} />
           <AlertItem dot="amber" text="Nakibuule Sarah — fee arrears 68 days" meta="S5A · Parent contacted" actionLabel="Finance" onAction={() => navigate('/ht/finance')} />
-          <AlertItem dot="blue" text="Ssali Robert — medical leave request" meta="S6A · Nurse referred" actionLabel="Nurse" onAction={() => toast('Opening nurse portal...', 'info')} />
+          <AlertItem dot="blue" text="Ssali Robert — medical leave request" meta="S6A · Nurse referred" actionLabel="Nurse" onAction={() => navigate('/ht/academic')} />
         </div>
       </div>
 

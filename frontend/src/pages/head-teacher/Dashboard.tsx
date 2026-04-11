@@ -1,11 +1,125 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { StatCard } from '../../components/ui/StatCard';
-import { AlertItem } from '../../components/ui/AlertItem';
-import { Chip } from '../../components/ui/Chip';
+import { StatCard }   from '../../components/ui/StatCard';
+import { AlertItem }  from '../../components/ui/AlertItem';
+import { Chip }       from '../../components/ui/Chip';
 import { ProgressBar } from '../../components/ui/ProgressBar';
-import { Modal } from '../../components/ui/Modal';
-import { useToast } from '../../contexts/ToastContext';
+import { Modal }      from '../../components/ui/Modal';
+import { useToast }   from '../../contexts/ToastContext';
+
+/* ══════════════════════════════════════════════
+   MODALS
+══════════════════════════════════════════════ */
+function AnnouncementModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const { toast } = useToast();
+  return (
+    <Modal open={open} onClose={onClose} id="dash-announce" title="📢 New School Announcement">
+      <div className="space-y-4">
+        <div>
+          <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Announcement Title</label>
+          <input className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:border-indigo-400 focus:bg-white" placeholder="e.g. End of Term Exam Schedule" />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Category</label>
+            <select className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none">
+              <option>School-Wide</option><option>Academic</option><option>Boarding</option><option>Finance</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Priority</label>
+            <select className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none">
+              <option>Normal</option><option>High</option><option>Urgent</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Send To</label>
+          <select className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none">
+            <option>All Portals (Students, Parents, Staff)</option><option>Staff Only</option><option>Students Only</option><option>Parents Only</option>
+          </select>
+        </div>
+        <div>
+          <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Message</label>
+          <textarea className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 min-h-[100px] resize-y focus:outline-none" placeholder="Write your announcement here..." />
+        </div>
+        <div className="flex gap-2 justify-end pt-1">
+          <button onClick={onClose} className="px-4 py-2 text-sm font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg">Cancel</button>
+          <button onClick={() => { onClose(); toast('Announcement broadcast to all portals ✓', 'success'); }} className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg">📢 Broadcast</button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+function CircularModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const { toast } = useToast();
+  return (
+    <Modal open={open} onClose={onClose} id="dash-circular" title="📄 Issue Official Circular">
+      <div className="space-y-4">
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Circular Number</label>
+            <input className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none" placeholder="HT/2026/008" />
+          </div>
+          <div>
+            <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Date</label>
+            <input type="date" defaultValue="2026-03-07" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none" />
+          </div>
+        </div>
+        <div>
+          <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Subject</label>
+          <input className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none" placeholder="Circular subject" />
+        </div>
+        <div>
+          <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Addressees</label>
+          <select className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none">
+            <option>All Staff</option><option>Teaching Staff Only</option><option>HODs</option><option>Non-Teaching Staff</option>
+          </select>
+        </div>
+        <div>
+          <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Body</label>
+          <textarea className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 min-h-[110px] resize-y focus:outline-none" placeholder="Dear Staff, ..." />
+        </div>
+        <div className="flex gap-2 justify-end pt-1">
+          <button onClick={onClose} className="px-4 py-2 text-sm font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg">Save Draft</button>
+          <button onClick={() => { onClose(); toast('Circular issued and distributed ✓', 'success'); }} className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg">Issue Circular</button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+function EmergencyModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const { toast } = useToast();
+  return (
+    <Modal open={open} onClose={onClose} id="dash-emergency" title="🚨 Emergency Alert" titleClassName="text-red-600">
+      <div className="space-y-4">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-600 font-semibold">
+          ⚠️ This will send an immediate alert to ALL staff and security portals.
+        </div>
+        <div>
+          <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Emergency Type</label>
+          <select className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:border-red-400">
+            <option>Medical Emergency</option><option>Fire</option><option>Security Breach</option><option>Missing Student</option><option>Natural Disaster</option><option>Other</option>
+          </select>
+        </div>
+        <div>
+          <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Location</label>
+          <input className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:border-red-400" placeholder="Where is the emergency?" />
+        </div>
+        <div>
+          <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Details</label>
+          <textarea className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 min-h-[80px] resize-y focus:outline-none focus:border-red-400" placeholder="Describe the emergency..." />
+        </div>
+        <div className="flex gap-2 justify-end pt-1">
+          <button onClick={onClose} className="px-4 py-2 text-sm font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg">Cancel</button>
+          <button onClick={() => { onClose(); toast('🚨 Emergency alert sent to all portals!', 'warning'); }} className="px-4 py-2 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 rounded-lg">🚨 Send Emergency Alert</button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
 
 function MeetingModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { toast } = useToast();
@@ -24,7 +138,7 @@ function MeetingModal({ open, onClose }: { open: boolean; onClose: () => void })
         <div><label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Agenda / Notes</label><textarea className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 min-h-[70px] resize-y focus:outline-none focus:border-indigo-400" placeholder="Meeting agenda..." /></div>
         <div className="flex gap-2 justify-end pt-1">
           <button onClick={onClose} className="px-4 py-2 text-sm font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg">Cancel</button>
-          <button onClick={() => { onClose(); toast('Meeting scheduled and invites sent ✓', 'success'); }} className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg">Schedule & Notify</button>
+          <button onClick={() => { onClose(); toast('Meeting scheduled and invites sent ✓', 'success'); }} className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg">Schedule &amp; Notify</button>
         </div>
       </div>
     </Modal>
@@ -58,19 +172,22 @@ function StudentActionModal({ open, onClose }: { open: boolean; onClose: () => v
   );
 }
 
+/* ══════════════════════════════════════════════
+   DATA
+══════════════════════════════════════════════ */
 const SCHEDULE = [
-  { time: '7:30',  dot: 'green' as const,  title: 'Morning Assembly',             sub: 'Main Hall · All students',      type: 'Done',       typeCls: 'bg-emerald-50 text-emerald-700' },
-  { time: '9:00',  dot: 'blue' as const,   title: 'HOD Curriculum Review',        sub: 'Boardroom · 8 HODs',            type: 'Meeting',    typeCls: 'bg-indigo-50 text-indigo-600' },
-  { time: '11:00', dot: 'amber' as const,  title: 'S6 Class Visit — Physics',     sub: 'Block C, Room 12',              type: 'Inspection', typeCls: 'bg-amber-50 text-amber-700' },
-  { time: '14:00', dot: 'blue' as const,   title: 'Parent Representative Meeting', sub: 'Conference Room · 12 parents', type: 'Meeting',    typeCls: 'bg-indigo-50 text-indigo-600' },
-  { time: '16:30', dot: 'amber' as const,  title: 'Finance Review — Bursar',      sub: 'Office · Mr. Kato',             type: 'Review',     typeCls: 'bg-emerald-50 text-emerald-700' },
+  { time: '7:30',  dot: 'green' as const,  title: 'Morning Assembly',              sub: 'Main Hall · All students',      type: 'Done',       typeCls: 'bg-emerald-50 text-emerald-700' },
+  { time: '9:00',  dot: 'blue' as const,   title: 'HOD Curriculum Review',         sub: 'Boardroom · 8 HODs',            type: 'Meeting',    typeCls: 'bg-indigo-50 text-indigo-600' },
+  { time: '11:00', dot: 'amber' as const,  title: 'S6 Class Visit — Physics',      sub: 'Block C, Room 12',              type: 'Inspection', typeCls: 'bg-amber-50 text-amber-700' },
+  { time: '14:00', dot: 'blue' as const,   title: 'Parent Representative Meeting', sub: 'Conference Room · 12 parents',  type: 'Meeting',    typeCls: 'bg-indigo-50 text-indigo-600' },
+  { time: '16:30', dot: 'amber' as const,  title: 'Finance Review — Bursar',       sub: 'Office · Mr. Kato',             type: 'Review',     typeCls: 'bg-emerald-50 text-emerald-700' },
 ];
 
 const STAFF_ROWS = [
-  { initials: 'KM', color: 'bg-indigo-500', name: 'Ms. Nakakande Mary', role: 'Maths HOD',       dept: 'Mathematics', status: 'Present' as const, classes: '4 / 4', last: '8:45 AM' },
-  { initials: 'BK', color: 'bg-red-500',    name: 'Mr. Byamugisha K.',  role: 'Chemistry Teacher',dept: 'Sciences',    status: 'Absent'  as const, classes: '0 / 3', last: 'Yesterday' },
-  { initials: 'OS', color: 'bg-emerald-500',name: 'Mr. Opolot Samuel',  role: 'History Teacher',  dept: 'Humanities',  status: 'Present' as const, classes: '2 / 3', last: '9:20 AM' },
-  { initials: 'AN', color: 'bg-amber-400',  name: 'Mrs. Atim Norah',    role: 'English HOD',      dept: 'Languages',   status: 'Late'    as const, classes: '1 / 4', last: '9:55 AM' },
+  { initials: 'KM', color: 'bg-indigo-500', name: 'Ms. Nakakande Mary', role: 'Maths HOD',        dept: 'Mathematics', status: 'Present' as const, classes: '4 / 4', last: '8:45 AM' },
+  { initials: 'BK', color: 'bg-red-500',    name: 'Mr. Byamugisha K.',  role: 'Chemistry Teacher', dept: 'Sciences',    status: 'Absent'  as const, classes: '0 / 3', last: 'Yesterday' },
+  { initials: 'OS', color: 'bg-emerald-500',name: 'Mr. Opolot Samuel',  role: 'History Teacher',   dept: 'Humanities',  status: 'Present' as const, classes: '2 / 3', last: '9:20 AM' },
+  { initials: 'AN', color: 'bg-amber-400',  name: 'Mrs. Atim Norah',    role: 'English HOD',       dept: 'Languages',   status: 'Late'    as const, classes: '1 / 4', last: '9:55 AM' },
 ];
 
 const statusChip: Record<string, JSX.Element> = {
@@ -79,11 +196,28 @@ const statusChip: Record<string, JSX.Element> = {
   Late:    <Chip variant="amber">Late</Chip>,
 };
 
+/* ══════════════════════════════════════════════
+   MAIN PAGE
+══════════════════════════════════════════════ */
 export default function HTDashboard() {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [meetingOpen, setMeetingOpen] = useState(false);
-  const [actionOpen, setActionOpen] = useState(false);
+
+  // Modal state — all quick-action buttons open real modals
+  const [annOpen,       setAnnOpen]       = useState(false);
+  const [circOpen,      setCircOpen]      = useState(false);
+  const [emergencyOpen, setEmergencyOpen] = useState(false);
+  const [meetingOpen,   setMeetingOpen]   = useState(false);
+  const [actionOpen,    setActionOpen]    = useState(false);
+
+  const QUICK_ACTIONS = [
+    { label: '📢 School Announcement', primary: true,  danger: false, action: () => setAnnOpen(true)       },
+    { label: '📄 Issue Circular',       primary: false, danger: false, action: () => setCircOpen(true)      },
+    { label: '⚠️ Student Action',        primary: false, danger: false, action: () => setActionOpen(true)   },
+    { label: '📅 Schedule Meeting',      primary: false, danger: false, action: () => setMeetingOpen(true)  },
+    { label: '📊 Generate Report',       primary: false, danger: false, action: () => navigate('/ht/reports') },
+    { label: '🚨 Emergency Alert',       primary: false, danger: true,  action: () => setEmergencyOpen(true) },
+  ];
 
   return (
     <div>
@@ -109,14 +243,7 @@ export default function HTDashboard() {
 
       {/* Quick Actions */}
       <div className="flex flex-wrap gap-2.5 mb-6">
-        {[
-          { label: '📢 School Announcement', primary: true, action: () => toast('Opening announcement form...', 'info') },
-          { label: '📄 Issue Circular', primary: false, action: () => toast('Opening circular form...', 'info') },
-          { label: '⚠️ Student Action', primary: false, action: () => setActionOpen(true) },
-          { label: '📅 Schedule Meeting', primary: false, action: () => setMeetingOpen(true) },
-          { label: '📊 Generate Report', primary: false, action: () => navigate('/ht/reports') },
-          { label: '🚨 Emergency Alert', primary: false, danger: true, action: () => toast('Opening emergency form...', 'warning') },
-        ].map(({ label, primary, danger, action }) => (
+        {QUICK_ACTIONS.map(({ label, primary, danger, action }) => (
           <button
             key={label}
             onClick={action}
@@ -133,18 +260,18 @@ export default function HTDashboard() {
 
       {/* Stat Cards Row 1 */}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4 mb-4">
-        <StatCard title="Total Enrolled Students" value="1,247" icon="🎓" iconBg="blue" accent="blue" trend="↑ 4.2%" trendType="up" onClick={() => navigate('/ht/students')} />
-        <StatCard title="Average Attendance Today" value="91.4%" icon="✅" iconBg="green" accent="green" trend="↑ 1.8%" trendType="up" onClick={() => navigate('/ht/academic')} />
-        <StatCard title="Fees Collection Rate" value="78%" icon="💰" iconBg="amber" accent="amber" trend="→ On track" trendType="flat" onClick={() => navigate('/ht/finance')} />
-        <StatCard title="Students in Sick Bay" value="7" icon="🏥" iconBg="red" accent="red" trend="↑ 3 new" trendType="down" onClick={() => navigate('/ht/boarding')} />
+        <StatCard title="Total Enrolled Students" value="1,247" icon="🎓" iconBg="blue"   accent="blue"  trend="↑ 4.2%"      trendType="up"   onClick={() => navigate('/ht/students')} />
+        <StatCard title="Average Attendance Today" value="91.4%" icon="✅" iconBg="green"  accent="green" trend="↑ 1.8%"      trendType="up"   onClick={() => navigate('/ht/academic')} />
+        <StatCard title="Fees Collection Rate"     value="78%"   icon="💰" iconBg="amber"  accent="amber" trend="→ On track"  trendType="flat" onClick={() => navigate('/ht/finance')} />
+        <StatCard title="Students in Sick Bay"     value="7"     icon="🏥" iconBg="red"    accent="red"   trend="↑ 3 new"    trendType="down" onClick={() => navigate('/ht/boarding')} />
       </div>
 
       {/* Stat Cards Row 2 */}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
-        <StatCard title="Staff Present Today" value="92/98" icon="👨‍🏫" iconBg="purple" accent="purple" trend="94% present" trendType="up" />
-        <StatCard title="Boarding Students" value="684" icon="🛏️" iconBg="teal" accent="teal" trend="All accounted" trendType="up" />
-        <StatCard title="Exams Scheduled" value="24" icon="📋" iconBg="rose" accent="rose" trend="Term 1" trendType="flat" />
-        <StatCard title="School Security Status" value="Secure" icon="🔒" iconBg="teal" accent="cyan" trend="All clear" trendType="up" />
+        <StatCard title="Staff Present Today"     value="92/98" icon="👨‍🏫" iconBg="purple" accent="purple" trend="94% present"   trendType="up"   />
+        <StatCard title="Boarding Students"       value="684"   icon="🛏️"  iconBg="teal"   accent="teal"   trend="All accounted" trendType="up"   />
+        <StatCard title="Exams Scheduled"         value="24"    icon="📋"  iconBg="rose"   accent="rose"   trend="Term 1"        trendType="flat" />
+        <StatCard title="School Security Status"  value="Secure" icon="🔒" iconBg="teal"   accent="cyan"   trend="All clear"     trendType="up"   />
       </div>
 
       {/* Alerts + Schedule */}
@@ -155,11 +282,11 @@ export default function HTDashboard() {
             <h3 className="text-[15px] font-bold text-gray-900">⚠️ Priority Alerts</h3>
             <button onClick={() => navigate('/ht/boarding')} className="text-[12px] font-semibold text-indigo-600 hover:bg-indigo-50 px-2 py-1 rounded-md">See all</button>
           </div>
-          <AlertItem dot="red" text="3 students have not reported back from exeat" meta="Reported by Dorm Master · 30 min ago" actionLabel="View →" onAction={() => toast('Opening dorm report...', 'info')} />
-          <AlertItem dot="amber" text="S4 Chemistry teacher absent — class uncovered Period 3" meta="Deputy HM flagged · 1 hr ago" actionLabel="Action" onAction={() => toast('Notifying Deputy HM', 'info')} />
-          <AlertItem dot="amber" text="Fees arrears: 47 students exceed 60-day threshold" meta="Finance Officer · 2 hrs ago" actionLabel="Finance" onAction={() => navigate('/ht/finance')} />
-          <AlertItem dot="blue" text="UNEB Inspection scheduled for next Thursday" meta="Examination Officer · Yesterday" actionLabel="Prep" onAction={() => toast('Opening exam portal', 'info')} />
-          <AlertItem dot="green" text="Gate security system: All checkpoints operational" meta="Head of Security · 15 min ago" actionLabel="View" onAction={() => navigate('/ht/security')} />
+          <AlertItem dot="red"   text="3 students have not reported back from exeat"             meta="Reported by Dorm Master · 30 min ago" actionLabel="View →"  onAction={() => toast('Opening dorm report...', 'info')} />
+          <AlertItem dot="amber" text="S4 Chemistry teacher absent — class uncovered Period 3"   meta="Deputy HM flagged · 1 hr ago"         actionLabel="Action"  onAction={() => toast('Notifying Deputy HM', 'info')} />
+          <AlertItem dot="amber" text="Fees arrears: 47 students exceed 60-day threshold"       meta="Finance Officer · 2 hrs ago"          actionLabel="Finance" onAction={() => navigate('/ht/finance')} />
+          <AlertItem dot="blue"  text="UNEB Inspection scheduled for next Thursday"             meta="Examination Officer · Yesterday"      actionLabel="Prep"    onAction={() => toast('Opening exam portal', 'info')} />
+          <AlertItem dot="green" text="Gate security system: All checkpoints operational"       meta="Head of Security · 15 min ago"        actionLabel="View"    onAction={() => navigate('/ht/security')} />
         </div>
 
         {/* Today's Schedule */}
@@ -197,7 +324,7 @@ export default function HTDashboard() {
             { pct: '61%', cls: 'Senior 1',            sub: '278 students · Adjustment period',  color: 'border-red-500 text-red-600 bg-red-50', chip: <Chip variant="red">Low</Chip> },
           ].map((r) => (
             <div key={r.cls} className="flex items-center gap-4 py-3.5 border-b border-gray-100 last:border-none">
-              <div className={`w-13 h-13 rounded-full border-[3px] flex items-center justify-center text-sm font-black flex-shrink-0 ${r.color}`} style={{width:'52px',height:'52px'}}>
+              <div className={`rounded-full border-[3px] flex items-center justify-center text-sm font-black flex-shrink-0 ${r.color}`} style={{ width: 52, height: 52 }}>
                 {r.pct}
               </div>
               <div className="flex-1 min-w-0">
@@ -215,11 +342,11 @@ export default function HTDashboard() {
             <h3 className="text-[15px] font-bold text-gray-900">🏥 School Health Summary</h3>
             <button className="text-[12px] font-semibold text-indigo-600 hover:bg-indigo-50 px-2 py-1 rounded-md" onClick={() => toast('Opening sick bay...', 'info')}>Sick Bay →</button>
           </div>
-          <ProgressBar label="Attendance Rate" value={91.4} color="green" />
-          <ProgressBar label="Fees Collection" value={78} color="amber" />
-          <ProgressBar label="Staff Attendance" value={94} color="blue" />
-          <ProgressBar label="Syllabus Coverage" value={68} color="purple" />
-          <ProgressBar label="Sanitation Score" value={83} color="teal" />
+          <ProgressBar label="Attendance Rate"  value={91.4} color="green"  />
+          <ProgressBar label="Fees Collection"  value={78}   color="amber"  />
+          <ProgressBar label="Staff Attendance" value={94}   color="blue"   />
+          <ProgressBar label="Syllabus Coverage" value={68}  color="purple" />
+          <ProgressBar label="Sanitation Score" value={83}   color="teal"   />
           <div className="border-t border-gray-100 pt-4 mt-2 grid grid-cols-2 gap-3">
             <div className="bg-red-50 rounded-xl p-3 text-center">
               <div className="text-xl font-black text-red-600">7</div>
@@ -236,14 +363,14 @@ export default function HTDashboard() {
       {/* Staff Table */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
         <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-          <h3 className="text-[15px] font-bold text-gray-900">👨‍🏫 Staff Attendance & Activity</h3>
+          <h3 className="text-[15px] font-bold text-gray-900">👨‍🏫 Staff Attendance &amp; Activity</h3>
           <button onClick={() => navigate('/ht/staff')} className="text-[12px] font-semibold text-indigo-600 hover:bg-indigo-50 px-2 py-1 rounded-md">Full register</button>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-100">
-                {['Staff Member', 'Department', 'Status', 'Classes Today', 'Last Seen', 'Action'].map(h => (
+                {['Staff Member','Department','Status','Classes Today','Last Seen','Action'].map(h => (
                   <th key={h} className="px-4 py-3 text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wider first:pl-5">{h}</th>
                 ))}
               </tr>
@@ -277,8 +404,12 @@ export default function HTDashboard() {
         </div>
       </div>
 
-      <MeetingModal open={meetingOpen} onClose={() => setMeetingOpen(false)} />
-      <StudentActionModal open={actionOpen} onClose={() => setActionOpen(false)} />
+      {/* All modals */}
+      <AnnouncementModal  open={annOpen}       onClose={() => setAnnOpen(false)}       />
+      <CircularModal      open={circOpen}      onClose={() => setCircOpen(false)}      />
+      <EmergencyModal     open={emergencyOpen} onClose={() => setEmergencyOpen(false)} />
+      <MeetingModal       open={meetingOpen}   onClose={() => setMeetingOpen(false)}   />
+      <StudentActionModal open={actionOpen}    onClose={() => setActionOpen(false)}    />
     </div>
   );
 }

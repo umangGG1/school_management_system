@@ -44,7 +44,7 @@ export default function HTStaff() {
           <p className="text-[13px] text-gray-400 mt-1">98 staff members · 6 departments</p>
         </div>
         <div className="flex gap-2.5">
-          <button onClick={() => toast('Opening HR Portal...', 'info')} className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 shadow-sm">👥 HR Portal</button>
+          <button onClick={() => navigate('/teacher/dashboard')} className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 shadow-sm">👥 HR Portal</button>
           <button onClick={() => setActionOpen(true)} className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg">➕ Staff Action</button>
         </div>
       </div>
@@ -59,7 +59,7 @@ export default function HTStaff() {
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
         <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
           <h3 className="text-[15px] font-bold text-gray-900">Teaching Staff Register</h3>
-          <button onClick={() => toast('Opening full HR view...', 'info')} className="text-[12px] font-semibold text-indigo-600 hover:bg-indigo-50 px-2 py-1 rounded-md">Full HR View →</button>
+          <button onClick={() => navigate('/ht/staff')} className="text-[12px] font-semibold text-indigo-600 hover:bg-indigo-50 px-2 py-1 rounded-md">Full HR View →</button>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full">

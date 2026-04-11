@@ -26,6 +26,8 @@ import { HodModule } from './hod/hod.module';
 import { MessagingModule } from './messaging/messaging.module';
 import { ExamModule } from './exam/exam.module';
 import { CounselingModule } from './counseling/counseling.module';
+import { AdminModule } from './admin/admin.module';
+
 
 @Module({
   imports: [
@@ -81,6 +83,9 @@ import { CounselingModule } from './counseling/counseling.module';
     MessagingModule,
     ExamModule,
     CounselingModule,
+
+    // ── Admin Portal ─────────────────────────────────────────────────────────
+    AdminModule,
 
     // ── Dashboard (depends on all above) ─────────────────────────────────────
     DashboardModule,

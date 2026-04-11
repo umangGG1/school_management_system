@@ -1,9 +1,9 @@
+import { useNavigate } from 'react-router-dom';
 import { StatCard } from '../../components/ui/StatCard';
 import { Chip } from '../../components/ui/Chip';
-import { useToast } from '../../contexts/ToastContext';
 
 export default function HTBoarding() {
-  const { toast } = useToast();
+  const navigate = useNavigate();
   return (
     <div>
       <div className="mb-6">
@@ -20,9 +20,9 @@ export default function HTBoarding() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-6">
         {[
-          { icon: '🛏️', title: 'Dorm Master Portal', desc: 'Night roll-call, dormitory issues, discipline', chip: <Chip variant="red">3 missing</Chip>, onClick: () => toast('Opening Dorm Master Portal...', 'info') },
-          { icon: '🏠', title: 'Head of Boarding',   desc: 'Policy, welfare, exeat management',          chip: <Chip variant="green">Operational</Chip>, onClick: () => toast('Opening Head of Boarding Portal...', 'info') },
-          { icon: '🏥', title: 'Nurse — Sr. Nakamya',desc: 'Health records, sick bay, referrals',        chip: <Chip variant="amber">7 patients</Chip>,  onClick: () => toast('Opening Nurse Portal...', 'info') },
+          { icon: '🛏️', title: 'Dorm Master Portal', desc: 'Night roll-call, dormitory issues, discipline', chip: <Chip variant="red">3 missing</Chip>,    onClick: () => navigate('/ht/students') },
+          { icon: '🏠', title: 'Head of Boarding',   desc: 'Policy, welfare, exeat management',          chip: <Chip variant="green">Operational</Chip>, onClick: () => navigate('/ht/boarding') },
+          { icon: '🏥', title: 'Nurse — Sr. Nakamya',desc: 'Health records, sick bay, referrals',        chip: <Chip variant="amber">7 patients</Chip>,  onClick: () => navigate('/ht/academic') },
         ].map(p => (
           <button key={p.title} onClick={p.onClick} className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 text-left hover:shadow-md hover:-translate-y-0.5 transition-all">
             <div className="text-2xl mb-3">{p.icon}</div>

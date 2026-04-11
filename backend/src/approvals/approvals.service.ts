@@ -13,8 +13,19 @@ export class ApprovalsService {
   async findPending(schoolId: string): Promise<Approval[]> {
     return this.approvalRepo.find({
       where: { schoolId, status: ApprovalStatus.PENDING },
-      relations: ['requestedBy'],
+      relations: ['requestedBy', 'reviewedBy'],
       order: { createdAt: 'DESC' },
+    });
+  }
+
+  async findAll(schoolId: string, status?: ApprovalStatus): Promise<Approval[]> {
+    const where: any = { schoolId };
+    if (status) where.status = status;
+    return this.approvalRepo.find({
+      where,
+      relations: ['requestedBy', 'reviewedBy'],
+      order: { createdAt: 'DESC' },
+      take: 100,
     });
   }
 

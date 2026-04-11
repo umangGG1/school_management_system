@@ -1,11 +1,9 @@
 import { useNavigate } from 'react-router-dom';
-import { ProgressBar } from '../../components/ui/ProgressBar';
+import { ProgressBar }  from '../../components/ui/ProgressBar';
 import { PortalButton } from '../../components/ui/PortalButton';
-import { useToast } from '../../contexts/ToastContext';
 
 export default function HTAcademic() {
   const navigate = useNavigate();
-  const { toast } = useToast();
   return (
     <div>
       <div className="mb-6">
@@ -42,10 +40,10 @@ export default function HTAcademic() {
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
             <h3 className="text-[15px] font-bold text-gray-900 mb-4">Quick Links</h3>
             <div className="space-y-2.5">
-              <PortalButton icon="📐" name="Deputy HM" description="Timetable & cover lessons" color="indigo" onClick={() => toast('Opening Deputy HM Portal...', 'info')} />
-              <PortalButton icon="📗" name="HOD Portal" description="Departmental oversight" color="green" onClick={() => toast('Opening HOD Portal...', 'info')} />
-              <PortalButton icon="📝" name="Examination Office" description="Exams & results" color="rose" onClick={() => toast('Opening Exam Portal...', 'info')} />
-              <PortalButton icon="👨‍🏫" name="Teacher Portal" description="Lessons, marks, attendance" color="purple" onClick={() => toast('Opening Teacher Portal...', 'info')} />
+              <PortalButton icon="📐" name="Deputy HM" description="Timetable & cover lessons" color="indigo" onClick={() => navigate('/ht/staff')} />
+              <PortalButton icon="📗" name="HOD Portal" description="Departmental oversight" color="green" onClick={() => navigate('/ht/results')} />
+              <PortalButton icon="📝" name="Examination Office" description="Exams & results" color="rose" onClick={() => navigate('/exam-officer/dashboard')} />
+              <PortalButton icon="👨‍🏫" name="Teacher Portal" description="Lessons, marks, attendance" color="purple" onClick={() => navigate('/teacher/dashboard')} />
             </div>
           </div>
 

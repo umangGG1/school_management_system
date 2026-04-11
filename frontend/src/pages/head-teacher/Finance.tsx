@@ -1,6 +1,6 @@
+import { useNavigate } from 'react-router-dom';
 import { StatCard } from '../../components/ui/StatCard';
 import { Chip } from '../../components/ui/Chip';
-import { useToast } from '../../contexts/ToastContext';
 
 const FEES = [
   { cls: 'Senior 1', expected: 'UGX 69.5M', collected: 'UGX 60.2M', rate: 87, v: 'green' as const, defaulters: 12 },
@@ -12,7 +12,7 @@ const FEES = [
 ];
 
 export default function HTFinance() {
-  const { toast } = useToast();
+  const navigate = useNavigate();
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -20,7 +20,7 @@ export default function HTFinance() {
           <h2 className="text-[18px] font-bold text-gray-900">Finance Overview</h2>
           <p className="text-[13px] text-gray-400 mt-1">Read-only summary · Full control in Bursar Portal</p>
         </div>
-        <button onClick={() => toast('Opening Bursar Portal...', 'info')} className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg">Open Bursar Portal →</button>
+        <button onClick={() => navigate('/bursar/dashboard')} className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg">Open Bursar Portal →</button>
       </div>
 
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4 mb-6">

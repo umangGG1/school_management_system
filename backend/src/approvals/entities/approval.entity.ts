@@ -70,7 +70,7 @@ export class Approval {
   reviewedById: string;
 
   @Column({ nullable: true, type: 'text' })
-  reviewNotes: string;
+  reviewNotes: string | null;
 
   @CreateDateColumn()
   createdAt: Date;

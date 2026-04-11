@@ -1,6 +1,6 @@
+import { useNavigate } from 'react-router-dom';
 import { StatCard } from '../../components/ui/StatCard';
 import { Chip } from '../../components/ui/Chip';
-import { useToast } from '../../contexts/ToastContext';
 
 const VISITOR_LOG = [
   { name: 'Mr. Okullo Patrick', purpose: 'Parent Visit — S4A', in: '9:14 AM', badge: 'V-001' },
@@ -9,7 +9,7 @@ const VISITOR_LOG = [
 ];
 
 export default function HTSecurity() {
-  const { toast } = useToast();
+  const navigate = useNavigate();
   return (
     <div>
       <div className="mb-6">
@@ -27,9 +27,9 @@ export default function HTSecurity() {
       {/* Personnel Cards */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-6">
         {[
-          { icon: '🛡️', title: 'Sgt. Byaruhanga Peter', desc: 'Head of Security — full overview', chip: <Chip variant="green">On duty</Chip>, action: () => toast('Opening Security Portal...', 'info') },
-          { icon: '🚪', title: 'Boarding Gate (Mr. Okello)', desc: 'Student entry/exit, exeat checks', chip: <Chip variant="green">All clear</Chip>, action: () => toast('Opening Boarding Gate Portal...', 'info') },
-          { icon: '👮', title: 'Okello Moses', desc: 'Patrol guard — perimeter', chip: <Chip variant="green">On patrol</Chip>, action: () => toast('Opening Guard Portal...', 'info') },
+          { icon: '🛡️', title: 'Sgt. Byaruhanga Peter', desc: 'Head of Security — full overview', chip: <Chip variant="green">On duty</Chip>, action: () => navigate('/ht/security') },
+          { icon: '🚪', title: 'Boarding Gate (Mr. Okello)', desc: 'Student entry/exit, exeat checks', chip: <Chip variant="green">All clear</Chip>, action: () => navigate('/ht/students') },
+          { icon: '👮', title: 'Okello Moses', desc: 'Patrol guard — perimeter', chip: <Chip variant="green">On patrol</Chip>, action: () => navigate('/ht/security') },
         ].map(p => (
           <button key={p.title} onClick={p.action} className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 text-left hover:shadow-md hover:-translate-y-0.5 transition-all">
             <div className="text-2xl mb-3">{p.icon}</div>

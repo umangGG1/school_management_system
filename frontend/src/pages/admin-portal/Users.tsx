@@ -1,8 +1,9 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { usersApi, type ApiUser, type CreateUserPayload } from '../../lib/api';
 import { PageHeader } from '../../components/ui/PageHeader';
-import { Card }       from '../../components/ui/Card';
 import { Badge }      from '../../components/ui/Badge';
 import { Btn }        from '../../components/ui/Btn';
+import { Card }       from '../../components/ui/Card';
 
 /* ─── Types ─────────────────────────────────────────────────────── */
 interface User {
@@ -363,11 +364,39 @@ function UserPanel({
 /* ─── Main Page ──────────────────────────────────────────────────── */
 export default function AdminUsers() {
   const [users,    setUsers]    = useState<User[]>(SEED_USERS);
+  const [loading,  setLoading]  = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
   const [search,   setSearch]   = useState('');
   const [filter,   setFilter]   = useState('all');
   const [selected, setSelected] = useState<string[]>([]);
   const [panelOpen, setPanelOpen] = useState(false);
   const [editUser,  setEditUser]  = useState<User | null>(null);
+
+  /* Load from backend (fallback to seed data silently) */
+  const loadUsers = useCallback(async () => {
+    setLoading(true);
+    try {
+      const raw: ApiUser[] = await usersApi.list({ search, status: filter });
+      setUsers(raw.map(u => ({
+        id:      u.id,
+        name:    u.name,
+        role:    u.roles[0] ?? 'Teacher',
+        email:   u.email,
+        phone:   u.phone,
+        staffNo: u.staffNo,
+        status:  u.status,
+        last:    new Date(u.updatedAt).toLocaleString('en-GB', { hour:'2-digit', minute:'2-digit', day:'numeric', month:'short' }),
+      })));
+      setApiError(null);
+    } catch {
+      // Backend not running — keep seed data as-is, show banner
+      setApiError('Backend not connected — showing demo data. Start the backend to persist changes.');
+    } finally {
+      setLoading(false);
+    }
+  }, [search, filter]);
+
+  useEffect(() => { loadUsers(); }, [loadUsers]);
 
   const filtered = users.filter(u => {
     const q = search.toLowerCase();
@@ -385,23 +414,57 @@ export default function AdminUsers() {
   const openEdit     = (u: User) => { setEditUser(u); setPanelOpen(true); };
   const handleClose  = () => { setPanelOpen(false); setEditUser(null); };
 
-  const handleSave   = (u: User) => {
-    setUsers(prev =>
-      prev.some(x => x.id === u.id)
-        ? prev.map(x => x.id === u.id ? u : x)
-        : [u, ...prev]
-    );
+  const handleSave = async (u: User) => {
+    try {
+      const nameParts  = u.name.trim().split(' ');
+      const firstName  = nameParts[0];
+      const lastName   = nameParts.slice(1).join(' ') || '—';
+      const roleKey    = (Object.entries(ROLE_PORTAL).find(([,v]) => v.includes(u.role.toLowerCase().replace(' ','-')))?.[0] ?? u.role.toUpperCase().replace(/ /g,'_')) as string;
+
+      if (u.id.startsWith('USR-')) {
+        /* new user — no real id yet → POST */
+        const payload: CreateUserPayload = {
+          firstName, lastName,
+          email:    u.email,
+          password: (u as any)._password ?? 'Smissi@1234',
+          roles:    [roleKey],
+          phone:    u.phone,
+          staffNo:  u.staffNo,
+        };
+        const created: ApiUser = await usersApi.create(payload);
+        setUsers(prev => [{ ...u, id: created.id, last: 'Just now' }, ...prev.filter(x => x.id !== u.id)]);
+      } else {
+        /* existing user → PATCH */
+        await usersApi.update(u.id, { firstName, lastName, email: u.email, phone: u.phone, staffNo: u.staffNo, roles: [roleKey] });
+        setUsers(prev => prev.map(x => x.id === u.id ? { ...x, ...u, last: 'Just now' } : x));
+      }
+      setApiError(null);
+    } catch {
+      /* Backend down — just update local state */
+      setUsers(prev =>
+        prev.some(x => x.id === u.id)
+          ? prev.map(x => x.id === u.id ? u : x)
+          : [u, ...prev]
+      );
+    }
   };
 
-  const toggleStatus = (id: string) =>
-    setUsers(prev => prev.map(u => u.id === id ? { ...u, status: u.status === 'active' ? 'inactive' : 'active' } : u));
+  const toggleStatus = async (id: string) => {
+    try {
+      const updated: ApiUser = await usersApi.toggleStatus(id);
+      setUsers(prev => prev.map(u => u.id === id ? { ...u, status: updated.status } : u));
+    } catch {
+      setUsers(prev => prev.map(u => u.id === id ? { ...u, status: u.status === 'active' ? 'inactive' : 'active' } : u));
+    }
+  };
 
-  const bulkDeactivate = () => {
+  const bulkDeactivate = async () => {
+    await Promise.allSettled(selected.map(id => usersApi.update(id, { isActive: false }).catch(() => null)));
     setUsers(prev => prev.map(u => selected.includes(u.id) ? { ...u, status: 'inactive' } : u));
     setSelected([]);
   };
 
-  const active  = users.filter(u => u.status === 'active').length;
+  const active = users.filter(u => u.status === 'active').length;
 
   return (
     <div>
@@ -415,6 +478,17 @@ export default function AdminUsers() {
       />
 
       <Card>
+        {/* API status banner */}
+        {apiError && (
+          <div style={{
+            padding: '9px 14px', marginBottom: 12, borderRadius: 8,
+            background: '#fffbeb', border: '1px solid #fcd34d',
+            fontSize: 11, color: '#92400e', display: 'flex', gap: 8, alignItems: 'center',
+          }}>
+            ⚠️ {apiError}
+          </div>
+        )}
+
         {/* Toolbar */}
         <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
           <input

@@ -15,6 +15,24 @@ export class School {
   name: string;
 
   @Column({ nullable: true })
+  code: string;
+
+  @Column({ nullable: true })
+  motto: string;
+
+  @Column({ nullable: true })
+  foundedYear: string;
+
+  @Column({ nullable: true })
+  type: string;           // e.g. Government-Aided, Private
+
+  @Column({ nullable: true })
+  ownership: string;      // e.g. Anglican (COU)
+
+  @Column({ nullable: true })
+  district: string;
+
+  @Column({ nullable: true })
   address: string;
 
   @Column({ nullable: true })
@@ -24,7 +42,22 @@ export class School {
   email: string;
 
   @Column({ nullable: true })
+  website: string;
+
+  @Column({ nullable: true })
   logoUrl: string;
+
+  @Column({ nullable: true })
+  principalName: string;
+
+  @Column({ nullable: true })
+  deoName: string;
+
+  @Column({ nullable: true })
+  moesId: string;
+
+  @Column({ nullable: true })
+  streams: string;        // comma-separated: "Sciences, Arts, Business"
 
   @Column({ nullable: true, default: 'Uganda' })
   country: string;
