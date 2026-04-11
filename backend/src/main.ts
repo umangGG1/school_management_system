@@ -1,6 +1,8 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
+import { AllExceptionsFilter } from './common/filters/http-exception.filter';
+import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -11,13 +13,19 @@ async function bootstrap() {
   // Validate and strip unknown fields from all incoming DTOs
   app.useGlobalPipes(
     new ValidationPipe({
-      whitelist: true,       // strip unknown fields
+      whitelist: true,
       forbidNonWhitelisted: true,
-      transform: true,       // auto-transform payloads to DTO class instances
+      transform: true,
     }),
   );
 
-  // CORS — allow the HTML portals served at /portals/* to call the API
+  // Consistent error response shape
+  app.useGlobalFilters(new AllExceptionsFilter());
+
+  // Wrap all responses in { data, statusCode, timestamp }
+  app.useGlobalInterceptors(new TransformInterceptor());
+
+  // CORS — allow the React frontend and HTML portals to call the API
   app.enableCors({
     origin: true,
     credentials: true,

@@ -1,8 +1,32 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 * { box-sizing: border-box; }
-body { margin: 0; font-family: 'Inter', system-ui, sans-serif; background: #f9fafb; }
+body { margin: 0; font-family: 'Inter', system-ui, sans-serif; background: #f8f9fc; }
+
+@layer utilities {
+  .border-white\/8 { border-color: rgba(255,255,255,0.08); }
+}
+
+/* Toast slide-in */
+@keyframes slide-in {
+  from { transform: translateX(100%); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+.animate-slide-in { animation: slide-in 0.25s ease; }
+
+/* Modal bounce-in */
+@keyframes modal-in {
+  from { transform: scale(0.92) translateY(-12px); opacity: 0; }
+  to   { transform: scale(1)    translateY(0);     opacity: 1; }
+}
+.animate-modal-in { animation: modal-in 0.2s cubic-bezier(.22,1,.36,1); }
+
+/* Notification dropdown slide-down */
+@keyframes notifSlide {
+  from { opacity: 0; transform: translateY(-8px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0)    scale(1);    }
+}
