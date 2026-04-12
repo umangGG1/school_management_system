@@ -1,7 +1,7 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  GraduationCap, DollarSign, BookOpen, Home, Shield,
+  GraduationCap, DollarSign, BookOpen, Home, Shield, Building2,
   Heart, Scale, UserCheck, Clipboard,
   User, Eye, EyeOff, Lock, Mail,
   AlertCircle, ArrowLeft, CheckCircle, Zap, ChevronRight,
@@ -125,7 +125,7 @@ export default function LoginPage() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <div style={{ width: 44, height: 44, borderRadius: 12, background: C.primaryBlue, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: `0 4px 18px ${C.primaryBlue}40` }}>
-              <Shield size={20} color="white" strokeWidth={1.8} />
+              <Building2 size={20} color="white" strokeWidth={1.8} />
             </div>
             <div>
               <div style={{ fontWeight: 900, fontSize: 19, color: C.darkText, letterSpacing: '-0.5px' }}>SMISSI</div>
