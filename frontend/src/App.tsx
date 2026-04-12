@@ -5,6 +5,7 @@ import { ToastProvider } from './contexts/ToastContext';
 // ── Public pages
 import LandingPage from './pages/LandingPage';
 import LoginPage   from './pages/LoginPage';
+import SelectPortalPage from './pages/SelectPortalPage';
 
 // ── Head Teacher (already nested — no change)
 import { HeadTeacherLayout } from './components/layout/HeadTeacherLayout';
@@ -130,6 +131,7 @@ export default function App() {
             {/* ── Public ── */}
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/select-portal" element={<SelectPortalPage />} />
 
             {/* ── Head Teacher ── */}
             <Route path="/ht" element={<HeadTeacherLayout />}>
