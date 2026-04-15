@@ -1,9 +1,23 @@
 version: '3.8'
 
-# NOTE: Postgres is provided by the existing 'raisn-postgres' container on port 5432.
-# This compose file only manages Redis for SMISSI.
-
 services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: smissi_postgres
+    environment:
+      POSTGRES_USER: smissi
+      POSTGRES_PASSWORD: smissi_dev
+      POSTGRES_DB: smissi
+    ports:
+      - '5432:5432'
+    volumes:
+      - smissi_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U smissi -d smissi']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
   redis:
     image: redis:7-alpine
     container_name: smissi_redis
@@ -14,3 +28,6 @@ services:
       interval: 5s
       timeout: 3s
       retries: 5
+
+volumes:
+  smissi_pgdata:

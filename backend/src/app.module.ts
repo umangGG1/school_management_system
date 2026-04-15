@@ -1,9 +1,19 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { CacheModule } from '@nestjs/cache-manager';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
+import { redisStore } from 'cache-manager-redis-yet';
 
+import { AppCacheModule }  from './common/cache/cache.module';
+import { QueuesModule }    from './common/queues/queues.module';
+import { GatewaysModule }  from './common/gateways/gateways.module';
+import { StorageModule }   from './common/storage/storage.module';
+import { SmsModule }       from './common/sms/sms.module';
+import { EmailModule }     from './common/email/email.module';
+import { PdfModule }       from './common/pdf/pdf.module';
+import { PaymentsModule }  from './common/payments/payments.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { SchoolsModule } from './schools/schools.module';
@@ -28,6 +38,16 @@ import { ExamModule } from './exam/exam.module';
 import { CounselingModule } from './counseling/counseling.module';
 import { AdminModule }   from './admin/admin.module';
 import { ReportsModule } from './reports/reports.module';
+
+// ── Phase 4 Modules ───────────────────────────────────────────────────────────
+import { PayrollModule }    from './payroll/payroll.module';
+import { FacilitiesModule } from './facilities/facilities.module';
+import { UniformModule }    from './uniform/uniform.module';
+import { StoreModule }      from './store/store.module';
+import { SenModule }        from './sen/sen.module';
+import { GateModule }       from './gate/gate.module';
+import { EcaModule }        from './eca/eca.module';
+import { ParentsModule }    from './parents/parents.module';
 
 
 @Module({
@@ -59,8 +79,38 @@ import { ReportsModule } from './reports/reports.module';
           config.get<string>('NODE_ENV') === 'development' &&
           config.get<string>('DB_SYNC') === 'true',
         logging: config.get<string>('NODE_ENV') === 'development',
+        // Connection pool — prevents exhaustion under load
+        extra: {
+          max: config.get<number>('DB_POOL_MAX', 20),
+          min: config.get<number>('DB_POOL_MIN', 2),
+          idleTimeoutMillis: 30000,
+          connectionTimeoutMillis: 5000,
+        },
       }),
     }),
+
+    // ── Redis Cache (global — AppCacheService injectable everywhere) ──────────
+    CacheModule.registerAsync({
+      isGlobal: true,
+      inject: [ConfigService],
+      useFactory: async (config: ConfigService) => ({
+        store: await redisStore({
+          socket: {
+            host: config.get<string>('REDIS_HOST', 'localhost'),
+            port: config.get<number>('REDIS_PORT', 6379),
+          },
+        }),
+        ttl: 300_000, // 5 min default TTL in milliseconds
+      }),
+    }),
+    AppCacheModule,
+    QueuesModule,
+    GatewaysModule,
+    StorageModule,
+    SmsModule,
+    EmailModule,
+    PdfModule,
+    PaymentsModule,
 
     // ── Core Modules ─────────────────────────────────────────────────────────
     AuthModule,
@@ -90,6 +140,16 @@ import { ReportsModule } from './reports/reports.module';
 
     // ── Reports ───────────────────────────────────────────────────────────────
     ReportsModule,
+
+    // ── Phase 4 Feature Modules ────────────────────────────────────────────────
+    PayrollModule,
+    FacilitiesModule,
+    UniformModule,
+    StoreModule,
+    SenModule,
+    GateModule,
+    EcaModule,
+    ParentsModule,
 
     // ── Dashboard (depends on all above) ─────────────────────────────────────
     DashboardModule,

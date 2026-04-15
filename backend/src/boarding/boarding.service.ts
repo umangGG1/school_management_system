@@ -6,6 +6,8 @@ import {
   DormRollCall, DormRollCallEntry, RollCallEntryStatus,
 } from './entities/boarding.entities';
 import { DormIncident, NightReport, WelfareReport } from './entities/boarding-reports.entities';
+import { NotificationGateway } from '../common/gateways/notification.gateway';
+import { Student } from '../students/entities/student.entity';
 
 @Injectable()
 export class BoardingService {
@@ -19,6 +21,8 @@ export class BoardingService {
     @InjectRepository(DormIncident) private readonly incidentRepo: Repository<DormIncident>,
     @InjectRepository(NightReport) private readonly nightReportRepo: Repository<NightReport>,
     @InjectRepository(WelfareReport) private readonly welfareRepo: Repository<WelfareReport>,
+    @InjectRepository(Student) private readonly studentRepo: Repository<Student>,
+    private readonly gateway: NotificationGateway,
   ) {}
 
   // ─── Summary ─────────────────────────────────────────────────────────────
@@ -114,6 +118,22 @@ export class BoardingService {
       this.entryRepo.create({ rollCallId: rollCall.id, studentId: e.studentId, status: e.status, notes: e.notes }),
     );
     await this.entryRepo.save(entries);
+
+    // Real-time alert: notify school if any students are unaccounted for
+    const missingIds = dto.entries
+      .filter(e => e.status === RollCallEntryStatus.MISSING)
+      .map(e => e.studentId);
+    if (missingIds.length > 0) {
+      this.gateway.emitToSchool(schoolId, 'boarding:missing-students', {
+        rollCallId: rollCall.id,
+        dormitoryId: dto.dormitoryId,
+        period: dto.period,
+        missingStudentIds: missingIds,
+        count: missingIds.length,
+        timestamp: new Date(),
+      });
+    }
+
     return rollCall;
   }
 
@@ -124,6 +144,30 @@ export class BoardingService {
 
   async createAllocation(schoolId: string, data: Partial<DormAllocation>): Promise<DormAllocation> {
     return this.allocRepo.save(this.allocRepo.create({ ...data, schoolId }));
+  }
+
+  async getStudentBoardingStatus(userId: string, schoolId: string) {
+    // Resolve the student record from the user account
+    const student = await this.studentRepo.findOne({ where: { userId, schoolId } });
+    if (!student) {
+      return { allocated: false };
+    }
+
+    const allocation = await this.allocRepo
+      .createQueryBuilder('alloc')
+      .leftJoinAndSelect('alloc.dormRoom', 'dormRoom')
+      .leftJoinAndSelect('dormRoom.dormitory', 'dormitory')
+      .where('alloc.student_id = :studentId AND alloc.school_id = :schoolId AND alloc.is_active = true', {
+        studentId: student.id,
+        schoolId,
+      })
+      .getOne();
+
+    if (!allocation) {
+      return { allocated: false };
+    }
+
+    return { allocated: true, allocation };
   }
 
   // ─── Incidents ────────────────────────────────────────────────────────────

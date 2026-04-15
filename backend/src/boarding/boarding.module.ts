@@ -4,6 +4,7 @@ import {
   Dormitory, DormRoom, DormAllocation, StudentLeave, DormRollCall, DormRollCallEntry,
 } from './entities/boarding.entities';
 import { DormIncident, NightReport, WelfareReport } from './entities/boarding-reports.entities';
+import { Student } from '../students/entities/student.entity';
 import { BoardingService } from './boarding.service';
 import { BoardingController } from './boarding.controller';
 
@@ -12,6 +13,7 @@ import { BoardingController } from './boarding.controller';
     TypeOrmModule.forFeature([
       Dormitory, DormRoom, DormAllocation, StudentLeave, DormRollCall, DormRollCallEntry,
       DormIncident, NightReport, WelfareReport,
+      Student,
     ]),
   ],
   controllers: [BoardingController],

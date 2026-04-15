@@ -11,15 +11,23 @@ import {
   DefaultValuePipe,
   ParseIntPipe,
 } from '@nestjs/common';
-import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
-import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { JwtAuthGuard }   from '../common/guards/jwt-auth.guard';
+import { CurrentUser }    from '../common/decorators/current-user.decorator';
+import { Public }         from '../common/decorators/public.decorator';
 import { FinanceService } from './finance.service';
+import { PesapalService } from '../common/payments/pesapal.service';
+import { PaymentMethod }  from './entities/payment.entity';
+import { ConfigService }  from '@nestjs/config';
 import type { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
 
 @Controller('finance')
 @UseGuards(JwtAuthGuard)
 export class FinanceController {
-  constructor(private readonly financeService: FinanceService) {}
+  constructor(
+    private readonly financeService: FinanceService,
+    private readonly pesapalService: PesapalService,
+    private readonly configService:  ConfigService,
+  ) {}
 
   // ── Collection Summary ─────────────────────────────────────────────────────
 
@@ -167,6 +175,76 @@ export class FinanceController {
   @Patch('fee-structure/:id')
   updateFeeStructureItem(@Param('id') id: string, @CurrentUser() user: JwtPayload, @Body() body: any) {
     return this.financeService.updateFeeStructureItem(id, user.schoolId, body);
+  }
+
+  // ── Mobile Money Payments (Pesapal) ───────────────────────────────────────
+
+  /**
+   * POST /api/finance/pay/:invoiceId
+   * Initiates a Pesapal mobile money payment for an invoice.
+   * Returns a redirect URL — the frontend should open it in a webview/new tab.
+   */
+  @Post('pay/:invoiceId')
+  async initiatePayment(
+    @CurrentUser() user: JwtPayload,
+    @Param('invoiceId') invoiceId: string,
+    @Body() body: { phone: string; network: 'MTN' | 'AIRTEL'; firstName?: string; lastName?: string; email?: string },
+  ) {
+    // Fetch the invoice to get the amount
+    const invoice = await this.financeService.getInvoiceById(invoiceId, user.schoolId);
+
+    const baseUrl   = this.configService.get<string>('APP_URL', 'http://localhost:3000');
+    const callbackUrl = `${baseUrl}/api/finance/ipn`;
+
+    return this.pesapalService.initiatePayment({
+      amount:      invoice.amount - (invoice.paidAmount ?? 0),
+      currency:    'UGX',
+      orderId:     `INV-${invoiceId}-${Date.now()}`,
+      description: `School fees payment — Invoice ${invoiceId}`,
+      phone:       body.phone,
+      network:     body.network,
+      firstName:   body.firstName,
+      lastName:    body.lastName,
+      email:       body.email,
+      callbackUrl,
+    });
+  }
+
+  /**
+   * POST /api/finance/ipn
+   * Pesapal IPN (Instant Payment Notification) webhook.
+   * Pesapal calls this URL when a payment completes or fails.
+   * No auth guard — Pesapal is the caller.
+   */
+  @Public()
+  @Post('ipn')
+  async handleIpn(@Body() body: any) {
+    const status = await this.pesapalService.handleIpn(body);
+
+    if (status.status === 'COMPLETED' && status.orderId) {
+      // orderId format: INV-{invoiceId}-{timestamp}
+      // invoiceId may contain hyphens (UUID), so match everything up to the trailing numeric timestamp
+      const match = status.orderId.match(/^INV-(.+)-\d+$/);
+      const invoiceId = match?.[1] ?? null;
+
+      if (invoiceId) {
+        // Look up the invoice to get schoolId (IPN has no auth context)
+        const invoice = await this.financeService.getInvoiceByIdUnsafe(invoiceId);
+        if (invoice) {
+          await this.financeService.recordPayment({
+            invoiceId,
+            amount:       status.amount ?? 0,
+            method:       PaymentMethod.MTN_MOBILE_MONEY,  // Pesapal normalises the method
+            reference:    status.pesapalTransactionId,
+            schoolId:     invoice.schoolId,
+            recordedById: 'pesapal-ipn',
+          });
+        }
+      }
+    }
+
+    // Pesapal expects a 200 with specific body
+    return { orderNotificationType: body.pesapal_notification_type, orderTrackingId: body.pesapal_transaction_tracking_id, orderMerchantReference: body.pesapal_merchant_reference };
   }
 }
 

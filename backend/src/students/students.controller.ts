@@ -46,6 +46,11 @@ export class StudentsController {
     return this.studentsService.findAllDiscipline(user.schoolId, status);
   }
 
+  @Get('me')
+  getMyProfile(@CurrentUser() user: JwtPayload) {
+    return this.studentsService.findByUserId(user.sub, user.schoolId);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
     return this.studentsService.findOne(id, user.schoolId);

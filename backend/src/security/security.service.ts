@@ -1,13 +1,15 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between } from 'typeorm';
-import { GateLog, SecurityIncident, IncidentStatus } from './entities/security.entities';
+import { GateLog, SecurityIncident, IncidentStatus, IncidentSeverity } from './entities/security.entities';
+import { NotificationGateway } from '../common/gateways/notification.gateway';
 
 @Injectable()
 export class SecurityService {
   constructor(
     @InjectRepository(GateLog) private readonly gateRepo: Repository<GateLog>,
     @InjectRepository(SecurityIncident) private readonly incidentRepo: Repository<SecurityIncident>,
+    private readonly gateway: NotificationGateway,
   ) {}
 
   async overview(schoolId: string) {
@@ -50,7 +52,20 @@ export class SecurityService {
   }
 
   async createIncident(schoolId: string, reportedById: string, dto: Partial<SecurityIncident>): Promise<SecurityIncident> {
-    return this.incidentRepo.save(this.incidentRepo.create({ ...dto, schoolId, reportedById }));
+    const incident = await this.incidentRepo.save(
+      this.incidentRepo.create({ ...dto, schoolId, reportedById }),
+    );
+
+    // Real-time alert: always emit new incidents; HIGH/CRITICAL are especially urgent
+    this.gateway.emitToSchool(schoolId, 'security:new-incident', {
+      incidentId: incident.id,
+      title: incident.title,
+      severity: incident.severity,
+      urgent: incident.severity === IncidentSeverity.HIGH || incident.severity === IncidentSeverity.CRITICAL,
+      timestamp: incident.createdAt,
+    });
+
+    return incident;
   }
 
   async updateIncident(id: string, schoolId: string, dto: Partial<SecurityIncident>): Promise<SecurityIncident> {

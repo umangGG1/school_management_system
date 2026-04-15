@@ -1,5 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
+import { IoAdapter } from '@nestjs/platform-socket.io';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters/http-exception.filter';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
@@ -24,6 +25,9 @@ async function bootstrap() {
 
   // Wrap all responses in { data, statusCode, timestamp }
   app.useGlobalInterceptors(new TransformInterceptor());
+
+  // Socket.io adapter (must be before listen)
+  app.useWebSocketAdapter(new IoAdapter(app));
 
   // CORS — allow the React frontend and HTML portals to call the API
   app.enableCors({
