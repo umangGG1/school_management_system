@@ -60,7 +60,7 @@ export class StaffService {
       .createQueryBuilder('a')
       .select('a.status', 'status')
       .addSelect('COUNT(*)', 'count')
-      .where('a.school_id = :schoolId AND a.date = :today', { schoolId, today })
+      .where('a.schoolId = :schoolId AND a.date = :today', { schoolId, today })
       .groupBy('a.status')
       .getRawMany();
 
@@ -100,7 +100,7 @@ export class StaffService {
   async getAttendanceHistory(staffId: string, schoolId: string, from?: string, to?: string) {
     const qb = this.attendanceRepo
       .createQueryBuilder('a')
-      .where('a.staff_id = :staffId AND a.school_id = :schoolId', { staffId, schoolId });
+      .where('a.staffId = :staffId AND a.schoolId = :schoolId', { staffId, schoolId });
     if (from) qb.andWhere('a.date >= :from', { from });
     if (to) qb.andWhere('a.date <= :to', { to });
     return qb.orderBy('a.date', 'DESC').getMany();

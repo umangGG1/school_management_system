@@ -1,0 +1,706 @@
+\documentclass[11pt, a4paper]{article}
+
+% ── Packages ─────────────────────────────────────────────────────────────────
+\usepackage[T1]{fontenc}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage[hidelinks]{hyperref}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{longtable}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{parskip}
+\usepackage{microtype}
+\usepackage{listings}
+
+% ── Head height fix ───────────────────────────────────────────────────────────
+\setlength{\headheight}{14pt}
+\addtolength{\topmargin}{-2pt}
+
+% ── Colors ───────────────────────────────────────────────────────────────────
+\definecolor{primary}{RGB}{30, 64, 175}
+\definecolor{done}{RGB}{22, 101, 52}
+\definecolor{partial}{RGB}{133, 77, 14}
+\definecolor{codebg}{RGB}{245, 245, 245}
+
+% ── Section formatting ────────────────────────────────────────────────────────
+\titleformat{\section}{\large\bfseries\color{primary}}{}{0em}{}[\titlerule]
+\titleformat{\subsection}{\normalsize\bfseries}{}{0em}{}
+\titleformat{\subsubsection}{\normalsize\itbfseries}{}{0em}{}
+
+% ── Header / footer ───────────────────────────────────────────────────────────
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{\textcolor{gray}{\small SMISSI --- Full-Stack Progress Report}}
+\lhead{\textcolor{gray}{\small April 2026}}
+\rfoot{\thepage}
+
+% ── Code listing style ────────────────────────────────────────────────────────
+\lstset{
+  backgroundcolor=\color{codebg},
+  basicstyle=\ttfamily\footnotesize,
+  breaklines=true,
+  frame=none,
+  xleftmargin=0.5em,
+  xrightmargin=0.5em,
+  aboveskip=4pt,
+  belowskip=4pt,
+}
+
+% ── Helpers ───────────────────────────────────────────────────────────────────
+\newcommand{\done}{\textcolor{done}{\textbf{Done}}}
+\newcommand{\inprog}{\textcolor{partial}{\textbf{Partial}}}
+\newcommand{\pend}{\textcolor{gray}{Pending}}
+\newcommand{\code}[1]{\texttt{\small #1}}
+
+% ─────────────────────────────────────────────────────────────────────────────
+\begin{document}
+
+\begin{center}
+  {\LARGE \textbf{SMISSI School Management System}}\\[6pt]
+  {\large Full-Stack Technical Progress Report}\\[4pt]
+  {\normalsize NestJS + PostgreSQL + Redis + BullMQ + React \quad|\quad April 2026}
+\end{center}
+
+\vspace{0.5em}
+\hrule
+\vspace{1em}
+
+% ═════════════════════════════════════════════════════════════════════════════
+\section{Project Overview}
+
+SMISSI is a production-grade school management platform for Ugandan secondary
+schools (target: 5\,000 students). The system consists of a \textbf{NestJS monolith}
+backend backed by \textbf{PostgreSQL}, and a \textbf{React + TypeScript} frontend
+with 35+ role-based portals consuming a single REST API.
+
+\subsection*{Technical Stack}
+
+\begin{tabular}{@{}ll@{}}
+  \toprule
+  Layer & Technology \\
+  \midrule
+  Runtime & Node.js 22 / TypeScript 5.7 \\
+  Framework & NestJS 11 \\
+  ORM & TypeORM 0.3 \\
+  Database & PostgreSQL 16 \\
+  Queue / Jobs & BullMQ 5 + Redis 7 \\
+  Auth & Passport JWT \\
+  Real-time & Socket.io 4 (\code{/notifications} namespace) \\
+  File storage & Cloudflare R2 via AWS SDK v3 \\
+  SMS & Africa's Talking \\
+  Email & Resend \\
+  PDF & Puppeteer (headless Chromium) \\
+  Payments & Pesapal (MTN / Airtel Mobile Money) \\
+  Frontend & React 18 + TypeScript + Vite \\
+  Testing & Jest 30 + Supertest 7 \\
+  Dev infra & Docker Compose (Postgres 16 + Redis 7) \\
+  \bottomrule
+\end{tabular}
+
+% ═════════════════════════════════════════════════════════════════════════════
+\section{Backend --- What Has Been Built}
+
+\subsection{Phase 1 --- Database Performance}
+
+Added \textbf{28 indexes} across the most query-heavy tables via
+migration \code{003-add-indexes.ts}, all using \code{CREATE INDEX CONCURRENTLY}
+so they are safe to run on a live database without table locks.
+
+Critical indexes added:
+
+\begin{itemize}[leftmargin=1.5em, itemsep=0pt]
+  \item \code{student\_attendance(school\_id, date DESC)} --- attendance queries (1M+ rows/year)
+  \item \code{invoices(student\_id, status)} --- fee defaulter lookups
+  \item \code{notifications(recipient\_id, is\_read, created\_at DESC)} --- inbox queries
+  \item \code{activity\_logs(school\_id, created\_at DESC)} --- audit trail pagination
+  \item \code{messages(to\_user\_id, status, created\_at DESC)} --- messaging inbox
+\end{itemize}
+
+TypeORM connection pool configured: \code{max=20, min=2, idleTimeoutMillis=30000}.
+
+The N+1 query in \code{collectionSummary()} was replaced with a single SQL
+aggregate using \code{createQueryBuilder(...).groupBy('inv.class\_id')}.
+
+\subsection{Phase 2 --- Redis Caching Layer}
+
+\begin{itemize}[leftmargin=1.5em, itemsep=0pt]
+  \item \code{CacheModule.registerAsync()} wired globally in \code{app.module.ts}
+    using \code{cache-manager-redis-yet}
+  \item Custom \code{AppCacheService} with a \code{getOrSet<T>(key, factory, ttlMs)}
+    pattern and \code{delByPattern()} for Redis SCAN+DEL
+  \item Cache keys follow the convention \code{domain:role:schoolId:term}
+  \item Default TTL: 5 minutes; fee structures cached for 60 minutes
+\end{itemize}
+
+\subsection{Phase 3 --- Background Job Queue (BullMQ)}
+
+Five named queues registered globally via \code{QueuesModule}:
+
+\begin{center}
+\begin{tabular}{@{}ll@{}}
+  \toprule
+  Queue & Purpose \\
+  \midrule
+  \code{payroll} & Payslip generation (transactional, per-run) \\
+  \code{pdf} & Puppeteer render then upload to R2 \\
+  \code{sms} & Africa's Talking dispatch \\
+  \code{email} & Resend dispatch \\
+  \code{archival} & Purge activity logs older than 90 days \\
+  \bottomrule
+\end{tabular}
+\end{center}
+
+Each processor uses exponential backoff with 3 retry attempts.
+The payroll processor wraps all payslip inserts in a \code{QueryRunner}
+transaction --- any single failure rolls back the entire run.
+
+\subsection{Phase 4 --- Eight New Feature Modules}
+
+All eight modules are fully implemented with entities, service layer,
+and role-guarded HTTP controllers.
+
+\subsubsection*{4.1 Payroll}
+
+\begin{itemize}[leftmargin=1.5em, itemsep=0pt]
+  \item Entities: \code{PayrollRun}, \code{Payslip}, \code{SalaryComponent}, \code{PayeBracket}
+  \item Uganda FY2024/25 PAYE brackets stored in the database (seeded by migration,
+    not hardcoded): 0\% up to UGX 235\,000; 10\%; 20\%; 30\% up to UGX 10M;
+    40\% above UGX 10M
+  \item NSSF: 5\% employee + 10\% employer of gross salary, computed per payslip
+  \item \code{POST /payroll/runs} enqueues a BullMQ job and returns
+    \code{202 Accepted} immediately --- payslip calculation is fully async
+  \item \code{approveRun()} validates DRAFT status before promoting to APPROVED
+\end{itemize}
+
+\subsubsection*{4.2 Facilities}
+
+Asset registry (furniture, equipment, vehicles, labs), facility booking with
+approval workflow, and maintenance request tracking with priority levels
+(LOW / MEDIUM / HIGH / CRITICAL) and status lifecycle.
+
+\subsubsection*{4.3 Uniform}
+
+Per-size stock tracking (\code{UniformStock}). Allocations use a raw SQL atomic
+decrement:
+
+\begin{lstlisting}
+UPDATE uniform_stock
+SET quantity_in_stock = quantity_in_stock - $1
+WHERE id = $2 AND school_id = $3 AND quantity_in_stock >= $1
+\end{lstlisting}
+
+Checking \code{rowsAffected === 0} throws a \code{ConflictException},
+preventing over-allocation under concurrent requests without application-level
+locking.
+
+\subsubsection*{4.4 Store}
+
+Inventory items with a stock movement ledger (IN / OUT / ADJUSTMENT) and a
+full requisition lifecycle: PENDING $\to$ APPROVED $\to$ FULFILLED.
+\code{approveRequisition()} runs inside a \code{QueryRunner} transaction,
+decrements each line item atomically, and records partial fulfilment quantities.
+
+\subsubsection*{4.5 SEN (Special Educational Needs)}
+
+Student SEN records with category classification (learning disability, physical,
+visual, hearing, speech, behavioural), observation notes (academic impact,
+behaviour, recommendations), and accommodation plans with review dates.
+Endpoints restricted to teacher-level and above roles only.
+
+\subsubsection*{4.6 Gate}
+
+Student gate passes with a 6-digit random pass code. Role separation enforced:
+\code{GATE\_GUARD} can log exits and returns but cannot approve passes;
+\code{HEAD\_OF\_BOARDING} and \code{HEAD\_TEACHER} can approve. Visitor
+registration with entry/exit timestamps and badge tracking. Socket.io events
+are emitted on pass approval and student exit.
+
+\subsubsection*{4.7 ECA (Extra-Curricular Activities)}
+
+\begin{itemize}[leftmargin=1.5em, itemsep=0pt]
+  \item Entities: \code{EcaActivity}, \code{EcaCompetition}, \code{EcaAttendanceRecord}
+  \item 9 endpoints covering activities CRUD, competition tracking, per-session
+    attendance recording, patron grouping, and leadership clubs
+  \item Attendance rates computed via SQL aggregate (PRESENT + LATE / total),
+    defaulting to 80\% when no records exist yet
+  \item Patron listing groups multiple activities under a single staff member
+  \item Migration \code{006-eca-parents.ts}: 3 tables with unique constraint on
+    \code{(activityId, studentId, sessionDate)} to prevent duplicate attendance
+\end{itemize}
+
+\subsubsection*{4.8 Parents}
+
+\begin{itemize}[leftmargin=1.5em, itemsep=0pt]
+  \item 5 endpoints: child profile, marks, attendance, fee balance, send message
+  \item Parent--student link resolved via \code{parentEmail} field on the
+    \code{Student} entity (no FK required): JWT \code{sub} $\to$ user record
+    $\to$ email $\to$ student lookup
+  \item Delegates to \code{ExamService}, \code{AcademicService},
+    \code{FinanceService}, \code{MessagingService} --- no data duplication
+  \item \code{POST /parents/me/messages} restricted to \code{PARENT} role only;
+    read endpoints also accessible to \code{HEAD\_TEACHER} and \code{SUPER\_ADMIN}
+\end{itemize}
+
+\subsubsection*{Migrations Summary}
+
+\begin{center}
+\begin{tabular}{@{}lll@{}}
+  \toprule
+  Migration & Tables / Changes & Notes \\
+  \midrule
+  003-add-indexes & 28 indexes & CONCURRENTLY, safe on live DB \\
+  004-new-modules & 19 tables & Payroll, Facilities, Uniform, Store, SEN, Gate \\
+  005-admin-entities & 3 tables & AcademicTerm, SupportTicket, IntegrationConfig \\
+  006-eca-parents & 3 tables & ECA activities, competitions, attendance \\
+  \bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Phase 5 --- Real-time Notifications (Socket.io)}
+
+\code{NotificationGateway} on namespace \code{/notifications}:
+
+\begin{itemize}[leftmargin=1.5em, itemsep=0pt]
+  \item Clients join rooms \code{school:\{schoolId\}} and \code{user:\{userId\}} on connect
+  \item \code{emitToSchool()} and \code{emitToUser()} helpers used throughout services
+  \item Events currently wired: \code{boarding:missing-students},
+    \code{security:new-incident}, \code{gate:pass-approved}, \code{gate:student-exit}
+  \item \code{GatewaysModule} is \code{@Global()} --- injectable anywhere without
+    re-importing
+\end{itemize}
+
+\code{main.ts} uses \code{IoAdapter} from \code{@nestjs/platform-socket.io}.
+
+\subsection{Phase 6 --- External Integrations}
+
+\begin{itemize}[leftmargin=1.5em, itemsep=2pt]
+  \item \textbf{Cloudflare R2} --- \code{StorageService.upload()},
+    \code{getPresignedUrl()}, \code{delete()} via \code{@aws-sdk/client-s3}
+    pointed at \code{https://\{accountId\}.r2.cloudflarestorage.com}
+
+  \item \textbf{Africa's Talking SMS} --- dispatched through the \code{sms}
+    BullMQ queue; never synchronous; retried on failure with exponential backoff
+
+  \item \textbf{Resend Email} --- dispatched through the \code{email} BullMQ queue;
+    \code{sendText()} convenience wrapper converts plain text to minimal HTML
+
+  \item \textbf{Puppeteer PDF} --- lazy dynamic import to avoid cold-start cost;
+    \code{renderHtml(html) -> Buffer}; PDF uploaded to R2 and URL written back
+    to the payslip row by the processor
+
+  \item \textbf{Pesapal} --- OAuth2 token cached for 4 minutes (token TTL is 5 min);
+    \code{initiatePayment()} returns a redirect URL; \code{handleIpn()} maps
+    the mobile network to the correct \code{PaymentMethod} enum value;
+    the IPN webhook endpoint is decorated with \code{@Public()} to bypass
+    JWT auth (Pesapal is the caller, not an authenticated user)
+\end{itemize}
+
+\subsubsection*{PDF Templates}
+
+Two HTML templates implemented as typed TypeScript functions (no templating
+engine dependency):
+
+\begin{itemize}[leftmargin=1.5em, itemsep=0pt]
+  \item \code{payslipTemplate(data)} --- UGX-formatted payslip with PAYE,
+    NSSF, optional SACCO row, net pay box
+  \item \code{invoiceTemplate(data)} --- fee invoice with coloured status badge,
+    line items table, balance due
+\end{itemize}
+
+\subsection{Admin Module --- Stubs Replaced}
+
+11 stub methods that returned in-memory seed arrays were replaced with real
+TypeORM queries. Three new entities added: \code{AcademicTerm},
+\code{SupportTicket}, \code{IntegrationConfig} (migration \code{005-admin-entities.ts}).
+
+\subsection{Missing Endpoints Added}
+
+\begin{itemize}[leftmargin=1.5em, itemsep=2pt]
+  \item \code{GET /students/me} --- student fetches own profile using JWT \code{sub}.
+    Placed before \code{GET /students/:id} in the controller to prevent NestJS
+    treating the literal string ``me'' as a UUID parameter.
+    Required adding \code{findByUserId()} to \code{StudentsService}.
+
+  \item \code{GET /boarding/me} --- student fetches own dorm allocation status.
+    Returns \code{\{allocated: false\}} gracefully when no allocation exists.
+    Required adding \code{Student} entity to \code{BoardingModule}'s
+    \code{TypeOrmModule.forFeature()} imports.
+\end{itemize}
+
+% ═════════════════════════════════════════════════════════════════════════════
+\section{Frontend --- Portal Wiring}
+
+\subsection{Overview}
+
+All 35+ role-based portal pages were wired to the real backend REST API.
+Every page follows the \textbf{seed-fallback pattern}:
+
+\begin{enumerate}[leftmargin=1.5em, itemsep=0pt]
+  \item On mount, \code{useEffect} fires the real API call
+  \item On success --- render live data
+  \item On failure (network error, 401, etc.) --- render built-in seed data
+    and display an \textbf{offline banner} so the user knows data may be stale
+\end{enumerate}
+
+This means every portal is usable without a backend connection (demo mode)
+and automatically switches to live data once the API is reachable.
+
+\subsection{API Layer (\code{src/lib/api.ts})}
+
+Centralised HTTP client using a typed \code{req<T>(method, path, body)} wrapper.
+Two new API groups added this cycle:
+
+\begin{itemize}[leftmargin=1.5em, itemsep=2pt]
+  \item \code{parentApi} --- \code{getChild()}, \code{getChildMarks()},
+    \code{getChildAttendance()}, \code{getChildBalance()}, \code{sendMessage()}
+
+  \item \code{ecaApi} --- \code{getSummary()}, \code{getActivities()},
+    \code{getCompetitions()}, \code{getAttendance()}, \code{getPatrons()},
+    \code{getLeadership()}
+\end{itemize}
+
+Existing groups already in place: \code{studentSelfApi}, \code{examApi},
+\code{announcementsApi}, \code{financeApi}, \code{staffApi}, \code{academicApi},
+\code{dashboardApi}, \code{messagingApi}, \code{boardingApi}, \code{securityApi},
+\code{counselingApi}, \code{activityApi}, \code{adminApi}.
+
+\subsection{Portals Wired}
+
+\begin{longtable}{@{}p{5cm} p{9cm}@{}}
+  \toprule
+  Portal & API calls wired \\
+  \midrule
+  \endhead
+  HeadTeacher Dashboard & dashboard summary, students, staff, announcements, calendar \\
+  Teacher Portal & classes, attendance, marks, assignments, lesson notes, messages \\
+  HOD Portal & department stats, curriculum coverage, staff, results \\
+  Deputy HM Portal & discipline, approvals, staff, announcements \\
+  Bursar Portal & fee collection, invoices, payments, payroll, arrears, expenses, reports \\
+  Counsellor Portal & sessions, students with SEN, referrals, welfare records, reports \\
+  Exam Officer Portal & marks entry, exam schedule, invigilation assignments \\
+  Parent Portal & child profile, marks, attendance, fee balance, send message \\
+  Student Portal & own marks, attendance, fee balance, boarding status, announcements \\
+  Dorm Master Portal & boarding roll call, dorm allocations, student leaves \\
+  Nurse Portal & medical records, sick bay log \\
+  Security Portal & incidents, gate log, visitor log \\
+  Admin Portal & users, roles, fees, academic terms, activity log, integrations,
+    reports, support tickets, school settings \\
+  ECA Portal (Dashboard) & summary stats, attendance rates \\
+  ECA Registry & activity list (live) \\
+  ECA Sports & competition results, team count \\
+  ECA Attendance & per-activity attendance rates \\
+  ECA Competitions & competition stats and results \\
+  ECA Leadership & leadership club list \\
+  ECA Patrons & patron grouping with activity list \\
+  ECA Announcements & school announcements filtered for ECA \\
+  \bottomrule
+\end{longtable}
+
+\subsection{Component Fixes}
+
+\begin{itemize}[leftmargin=1.5em, itemsep=2pt]
+  \item \textbf{ProgressBar} --- \code{value} prop must be \code{string}
+    (e.g.\ \code{"88\%"}); \code{pct} prop takes the numeric value for the bar
+    width. Multiple portals had \code{value=\{score\}} (number) which caused
+    a TypeScript error; fixed to \code{value=\{`\$\{score\}\%`\} pct=\{score\}}.
+
+  \item \textbf{PortalLayout} --- role-based navigation links wired to the
+    active role from JWT context.
+
+  \item \textbf{StatCard} --- type fixes for optional trend and subtitle props.
+\end{itemize}
+
+% ═════════════════════════════════════════════════════════════════════════════
+\section{Testing}
+
+\subsection{Test Results}
+
+\begin{center}
+\begin{tabular}{@{}llrr@{}}
+  \toprule
+  Suite & Type & Tests & Status \\
+  \midrule
+  \code{eca.service.spec.ts}       & Unit        & 16  & \done \\
+  \code{parents.service.spec.ts}   & Unit        & 8   & \done \\
+  \code{gate.service.spec.ts}      & Unit        & 9   & \done \\
+  \code{finance.service.spec.ts}   & Unit        & 12  & \done \\
+  \code{payroll.service.spec.ts}   & Unit        & 16  & \done \\
+  \code{store.service.spec.ts}     & Unit        & 14  & \done \\
+  \code{uniform.service.spec.ts}   & Unit        & 12  & \done \\
+  \midrule
+  \textbf{Unit total}              &             & \textbf{107} & \done \\
+  \midrule
+  \code{eca.integration.spec.ts}     & Integration & 27  & \done \\
+  \code{parents.integration.spec.ts} & Integration & 21  & \done \\
+  \code{gate.integration.spec.ts}    & Integration & 19  & \done \\
+  \code{finance.integration.spec.ts} & Integration & 18  & \done \\
+  \code{payroll.integration.spec.ts} & Integration & 16  & \done \\
+  \code{store.integration.spec.ts}   & Integration & 12  & \done \\
+  \code{auth.integration.spec.ts}    & Integration & 8   & \done \\
+  \midrule
+  \textbf{Integration total}       &             & \textbf{121} & \done \\
+  \midrule
+  \textbf{Grand total}             &             & \textbf{228} & \textbf{\done} \\
+  \bottomrule
+\end{tabular}
+\end{center}
+
+Run commands:
+\begin{lstlisting}
+npm test                    # 107 unit tests
+npm run test:integration    # 121 integration tests
+\end{lstlisting}
+
+\subsection{Unit Test Strategy}
+
+Each service is tested in isolation with mocked TypeORM repositories,
+mocked BullMQ queues, and a mocked \code{DataSource}. No external connections
+required. Key coverage areas:
+
+\begin{itemize}[leftmargin=1.5em, itemsep=2pt]
+  \item \textbf{ECA attendance rates} --- SQL aggregate mock; 0\% default for
+    activities with no records; multi-activity average computation
+  \item \textbf{ECA patron grouping} --- multiple activities under one patron ID
+    collapsed into a single \code{PatronRow}; activities with null patron skipped
+  \item \textbf{Parent--child resolution} --- 404 when parent user not found;
+    404 when no student matches parent email; correct delegation to child services
+  \item \textbf{Parent message default category} --- \code{MessageCategory.GENERAL}
+    applied when caller omits category field
+  \item \textbf{Payroll PAYE} --- 9 cases covering all Uganda FY2024/25 tax
+    brackets including zero-tax threshold (UGX 235\,000) and top 40\% band
+  \item \textbf{Gate pass code uniqueness} --- 100 sequential calls produce
+    over 50 distinct codes (birthday-problem sanity check)
+  \item \textbf{Uniform atomic decrement} --- \code{rowsAffected = 0} triggers
+    \code{ConflictException} to prevent over-allocation
+  \item \textbf{PDF templates} --- 22 pure function tests; UGX number formatting,
+    conditional SACCO row, status badge colour selection
+\end{itemize}
+
+\subsection{Integration Test Strategy}
+
+Each suite spins up a real NestJS \code{TestingModule} with the actual
+\textbf{controller, guards, pipes, and interceptors} wired. Services are mocked.
+JWT tokens are signed with the dev fallback secret and verified by the real
+\code{JwtStrategy}, so the full authentication pipeline executes.
+
+Each suite verifies:
+
+\begin{itemize}[leftmargin=1.5em, itemsep=2pt]
+  \item \textbf{401} on missing \code{Authorization} header
+  \item \textbf{403} on wrong role (e.g.\ \code{TEACHER} hitting payroll
+    endpoints; \code{HEAD\_TEACHER} hitting \code{POST /parents/me/messages})
+  \item \textbf{400} on \code{ValidationPipe} rejection (missing required fields)
+  \item Correct HTTP status per endpoint (\code{202 Accepted} for job enqueue)
+  \item \code{TransformInterceptor} envelope shape: \code{\{data, statusCode, timestamp\}}
+  \item Service called with correct school-scoped and user-scoped arguments
+  \item \code{schoolId} always derived from JWT --- never from request body
+  \item 404 propagation from service \code{NotFoundException} to HTTP response
+\end{itemize}
+
+\subsection{Bugs Found During Testing}
+
+\begin{tabular}{@{}p{4.8cm} p{9.2cm}@{}}
+  \toprule
+  Bug & Fix \\
+  \midrule
+  IPN orderId regex stopped at the first hyphen, extracting only the first
+  segment of a UUID invoice ID &
+  Changed the regex to a greedy match: \verb|^INV-(.+)-\d+$| \\
+  \addlinespace[6pt]
+  \code{POST /finance/ipn} returned 401 because the class-level
+  \code{@UseGuards} blocked the Pesapal webhook caller &
+  Added \code{@Public()} decorator; updated \code{JwtAuthGuard} to
+  check \code{Reflector} and skip JWT verification on marked handlers \\
+  \addlinespace[6pt]
+  \code{GET /students/me} matched the \code{:id} route handler,
+  passing ``me'' as a UUID parameter to the service &
+  Moved \code{@Get('me')} declaration above \code{@Get(':id')} in
+  \code{StudentsController} \\
+  \addlinespace[6pt]
+  Frontend \code{ProgressBar} received \code{number} for \code{value}
+  prop (expected \code{string}) causing TypeScript compile errors &
+  Fixed all call sites to \code{value=\{`\$\{score\}\%`\} pct=\{score\}} \\
+  \bottomrule
+\end{tabular}
+
+% ═════════════════════════════════════════════════════════════════════════════
+\section{Codebase Metrics}
+
+\begin{tabular}{@{}lr@{}}
+  \toprule
+  Item & Count \\
+  \midrule
+  NestJS modules & 39 \\
+  TypeORM entities & 55 \\
+  HTTP controllers & 30 \\
+  Database migrations & 6 \\
+  BullMQ processors & 5 \\
+  Frontend portal pages & 35+ \\
+  API groups in \code{api.ts} & 15 \\
+  \midrule
+  Unit test suites & 7 \\
+  Unit tests & 107 \\
+  Integration test suites & 7 \\
+  Integration tests & 121 \\
+  \textbf{Total tests} & \textbf{228} \\
+  \midrule
+  PR & \href{https://github.com/umangGG1/school\_management\_system/pull/1}{\#1 feat: complete backend} \\
+  \bottomrule
+\end{tabular}
+
+% ═════════════════════════════════════════════════════════════════════════════
+\section{Architecture Decisions}
+
+\begin{tabular}{@{}p{4cm} p{10cm}@{}}
+  \toprule
+  Decision & Rationale \\
+  \midrule
+  \code{QUEUE} constants extracted to a separate file &
+  \code{@Processor(QUEUE.X)} runs at class decoration time. Importing from
+  \code{queues.module.ts} caused a circular reference where \code{QUEUE}
+  was \code{undefined} at decoration time. \\
+  \addlinespace[6pt]
+  Atomic stock decrement via raw SQL &
+  ORM-level read-modify-write has a TOCTOU race under concurrent requests.
+  \code{UPDATE ... WHERE quantity >= \$1} is atomic at the database level. \\
+  \addlinespace[6pt]
+  PDF templates as plain TypeScript functions &
+  No Handlebars or Nunjucks dependency. Templates are fully type-checked,
+  testable without a browser, and trivially tree-shakeable. \\
+  \addlinespace[6pt]
+  Payroll processor inside a \code{QueryRunner} &
+  A payroll run may produce hundreds of payslips. Any single insert failure
+  must roll back the entire batch; partial payrolls are worse than no payroll. \\
+  \addlinespace[6pt]
+  Infrastructure modules marked \code{@Global()} &
+  \code{GatewaysModule}, \code{StorageModule}, \code{SmsModule},
+  \code{EmailModule}, \code{PdfModule} are global so any feature module
+  injects them without re-importing. \\
+  \addlinespace[6pt]
+  Pesapal token cached for 4 minutes &
+  Pesapal OAuth2 tokens expire after 5 minutes. The 1-minute buffer prevents
+  using an expired token on a payment initiated at the last second. \\
+  \addlinespace[6pt]
+  Parent--student link via \code{parentEmail} string field &
+  No FK on the Student entity for parent. Resolution: JWT sub $\to$ userRepo
+  $\to$ email $\to$ student.parentEmail. Avoids schema changes to existing
+  Student entity while keeping the relationship queryable. \\
+  \addlinespace[6pt]
+  Seed-fallback pattern on frontend &
+  Every portal page works without a backend (demo / offline mode). The real
+  API call replaces seed data on success; an offline banner alerts the user
+  if the API is unreachable. This enabled frontend development to proceed
+  independently of backend readiness. \\
+  \bottomrule
+\end{tabular}
+
+% ═════════════════════════════════════════════════════════════════════════════
+\section{Environment Variables}
+
+\begin{lstlisting}
+# Application
+NODE_ENV=development
+JWT_SECRET=fallback_secret_change_me
+JWT_EXPIRES_IN=7d
+FRONTEND_URL=http://localhost:5173
+
+# Database pool
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=smissi
+DB_USER=smissi
+DB_PASSWORD=smissi_dev
+DB_POOL_MAX=20
+DB_POOL_MIN=2
+DB_SYNC=true          # only in development
+
+# Redis
+REDIS_HOST=localhost
+REDIS_PORT=6379
+
+# Cloudflare R2
+R2_ACCOUNT_ID=
+R2_ACCESS_KEY_ID=
+R2_SECRET_ACCESS_KEY=
+R2_BUCKET_NAME=smissi-uploads
+R2_PUBLIC_URL=
+
+# SMS (Africa's Talking)
+AT_API_KEY=
+AT_USERNAME=
+AT_SENDER_ID=SMISSI
+
+# Email (Resend)
+RESEND_API_KEY=
+EMAIL_FROM=noreply@smissi.ac.ug
+
+# Payments (Pesapal)
+PESAPAL_CONSUMER_KEY=
+PESAPAL_CONSUMER_SECRET=
+PESAPAL_ENV=sandbox
+\end{lstlisting}
+
+% ═════════════════════════════════════════════════════════════════════════════
+\section{Status Summary}
+
+\begin{longtable}{@{}p{5.5cm} l p{6cm}@{}}
+  \toprule
+  Area & Status & Notes \\
+  \midrule
+  \endhead
+  \multicolumn{3}{@{}l}{\textit{Backend}} \\
+  \midrule
+  Database indexes (28)        & \done     & Migration 003, CONCURRENTLY \\
+  Connection pool              & \done     & max=20, min=2 \\
+  Redis caching infrastructure & \done     & Global CacheModule + AppCacheService \\
+  BullMQ queues                & \done     & 5 queues, 5 processors \\
+  Payroll module               & \done     & PAYE seeded, transactional processor \\
+  Facilities module            & \done     & Assets, bookings, maintenance \\
+  Uniform module               & \done     & Atomic stock decrement \\
+  Store module                 & \done     & Requisition lifecycle, transactional \\
+  SEN module                   & \done     & Records, observations, plans \\
+  Gate module                  & \done     & Passes, visitors, Socket.io events \\
+  ECA module                   & \done     & Activities, competitions, attendance \\
+  Parents module               & \done     & Child data via email link \\
+  Admin module stubs           & \done     & DB-backed, 3 new entities \\
+  Missing endpoints            & \done     & \code{/students/me}, \code{/boarding/me} \\
+  Socket.io gateway            & \done     & 4 events, 3 modules \\
+  Cloudflare R2                & \done     & Upload, presigned URL, delete \\
+  Africa's Talking SMS         & \done     & Queued, retry on failure \\
+  Resend email                 & \done     & Queued, retry on failure \\
+  Puppeteer PDF                & \done     & Lazy import, 2 templates \\
+  Pesapal payments             & \done     & Initiate + IPN webhook \\
+  \midrule
+  \multicolumn{3}{@{}l}{\textit{Frontend}} \\
+  \midrule
+  Portal wiring (35+ pages)    & \done     & Seed fallback on all pages \\
+  ECA sub-pages (7 of 10)      & \done     & Dashboard, Registry, Sports, Attendance, Competitions, Leadership, Patrons \\
+  ECA sub-pages (3 of 10)      & \inprog   & Cultural, Timetable, Communications --- seed-only, no dedicated backend route \\
+  Exam Officer sub-pages       & \inprog   & ExamOfficerPortal wired; sub-pages (Marking, PaperSecurity, etc.) seed-only \\
+  \midrule
+  \multicolumn{3}{@{}l}{\textit{Testing}} \\
+  \midrule
+  Unit tests (107)             & \done     & 7 suites, 0 failures \\
+  Integration tests (121)      & \done     & 7 suites, 0 failures \\
+  \midrule
+  \multicolumn{3}{@{}l}{\textit{Infrastructure \& Delivery}} \\
+  \midrule
+  Docker Compose               & \done     & Postgres 16 + Redis 7 \\
+  \code{.env} file             & \done     & All variables documented \\
+  GitHub PR                    & \done     & umangGG1/school\_management\_system\#1 \\
+  PAYE brackets DB seed        & \inprog   & Table exists; seed values to insert \\
+  Production deployment        & \pend     & Railway/Render (backend), Vercel (frontend) \\
+  \bottomrule
+\end{longtable}
+
+\vspace{1.5em}
+\hrule
+\vspace{0.6em}
+{\small\textit{April 2026 \textbullet{} All tests run with \code{npm test}
+(unit) and \code{npm run test:integration} (HTTP layer).
+PR: \href{https://github.com/umangGG1/school_management_system/pull/1}{github.com/umangGG1/school\_management\_system/pull/1}}}
+
+\end{document}

@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Modal }    from '../../components/ui/Modal';
-import { useToast } from '../../contexts/ToastContext';
+import { Modal }         from '../../components/ui/Modal';
+import { useToast }      from '../../contexts/ToastContext';
+import { htReportsApi }  from '../../lib/api';
 
 /* ─── Types ──────────────────────────────────────────────── */
 interface ReportItem {
@@ -65,14 +66,54 @@ function GenerateReportModal({
   const [cls,    setCls]    = useState('All Classes');
   const [generating, setGenerating] = useState(false);
 
-  const handleGenerate = () => {
+  const downloadData = (data: any, filename: string, fmt: string) => {
+    let content = '';
+    let mime    = 'text/plain';
+    const name  = filename.replace(/\s+/g, '_');
+
+    if (fmt === 'CSV' || fmt === 'Excel (.xlsx)') {
+      // Flatten object/array to CSV
+      const rows: any[][] = [];
+      if (Array.isArray(data) && data.length) {
+        rows.push(Object.keys(data[0]));
+        data.forEach((r: any) => rows.push(Object.values(r)));
+      } else if (typeof data === 'object') {
+        Object.entries(data).forEach(([k, v]) => rows.push([k, JSON.stringify(v)]));
+      }
+      content = rows.map(r => r.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
+      mime = 'text/csv';
+    } else {
+      content = JSON.stringify(data, null, 2);
+      mime = 'application/json';
+    }
+
+    const a = document.createElement('a');
+    a.href = `data:${mime};charset=utf-8,` + encodeURIComponent(content);
+    a.download = `${name}_${term.replace(/[^a-z0-9]/gi, '_')}.${fmt === 'PDF' ? 'json' : fmt === 'CSV' ? 'csv' : 'csv'}`;
+    a.click();
+  };
+
+  const handleGenerate = async () => {
+    if (!report) return;
     setGenerating(true);
-    // Simulate a brief generation delay then toast success
-    setTimeout(() => {
+    const [termName, year] = term.split(', ');
+    try {
+      let data: any;
+      if (report.category === 'academic')  data = await htReportsApi.academic({ term: termName, academicYear: year });
+      else if (report.category === 'finance') data = await htReportsApi.finance({ term: termName, academicYear: year });
+      else if (report.category === 'boarding') data = await htReportsApi.boarding();
+      else                                     data = await htReportsApi.admin({ term: termName, academicYear: year });
+
+      downloadData(data ?? {}, report.title, format);
+      toast(`✅ ${report.title} (${format}) downloaded`, 'success');
+    } catch {
+      // Backend offline — download placeholder
+      downloadData({ report: report.title, term, generatedAt: new Date().toISOString(), note: 'offline placeholder' }, report.title, format);
+      toast(`${report.title} downloaded (offline data)`, 'info');
+    } finally {
       setGenerating(false);
       onClose();
-      toast(`✅ ${report?.title} (${format}) ready for download`, 'success');
-    }, 1200);
+    }
   };
 
   return (

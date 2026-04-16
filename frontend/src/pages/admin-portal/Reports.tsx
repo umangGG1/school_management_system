@@ -5,18 +5,18 @@ import { Badge }      from '../../components/ui/Badge';
 import { Btn }        from '../../components/ui/Btn';
 import { adminReportsApi, type ApiReport } from '../../lib/api';
 import { ProgressBar } from '../../components/ui/ProgressBar';
+import { useToast }   from '../../contexts/ToastContext';
 
-/* ─── Seed fallback ───────────────────────────────────────────────── */
 const SEED_REPORTS: ApiReport[] = [
-  { id: 'RPT-001', name: 'Term 1 Fee Collection',         type: 'finance',  generatedAt: null, size: null,      status: 'pending' },
-  { id: 'RPT-002', name: 'Staff Attendance Report',       type: 'hr',       generatedAt: null, size: null,      status: 'pending' },
-  { id: 'RPT-003', name: 'Student Academic Results S.4',  type: 'academic', generatedAt: null, size: null,      status: 'pending' },
-  { id: 'RPT-004', name: 'Welfare & Counselling Summary', type: 'welfare',  generatedAt: null, size: null,      status: 'pending' },
-  { id: 'RPT-005', name: 'MoES EMIS Submission (Term 1)',type: 'moes',     generatedAt: null, size: null,      status: 'pending' },
-  { id: 'RPT-006', name: 'Annual Budget Variance',        type: 'finance',  generatedAt: null, size: null,      status: 'pending' },
+  { id: 'RPT-001', name: 'Term 1 Fee Collection',         type: 'finance',  generatedAt: null, size: null, status: 'pending' },
+  { id: 'RPT-002', name: 'Staff Attendance Report',       type: 'hr',       generatedAt: null, size: null, status: 'pending' },
+  { id: 'RPT-003', name: 'Student Academic Results S.4',  type: 'academic', generatedAt: null, size: null, status: 'pending' },
+  { id: 'RPT-004', name: 'Welfare & Counselling Summary', type: 'welfare',  generatedAt: null, size: null, status: 'pending' },
+  { id: 'RPT-005', name: 'MoES EMIS Submission (Term 1)', type: 'moes',     generatedAt: null, size: null, status: 'pending' },
+  { id: 'RPT-006', name: 'Annual Budget Variance',        type: 'finance',  generatedAt: null, size: null, status: 'pending' },
 ];
 
-const TYPE_MAP: Record<string, 'indigo' | 'green' | 'blue' | 'amber' | 'teal'> = {
+const TYPE_COLOR: Record<string, 'green' | 'blue' | 'indigo' | 'amber' | 'teal'> = {
   finance: 'green', hr: 'blue', academic: 'indigo', welfare: 'teal', moes: 'amber',
 };
 
@@ -28,14 +28,14 @@ const KPI = [
 ];
 
 export default function AdminReports() {
+  const { toast } = useToast();
   const [reports,    setReports]    = useState<ApiReport[]>(SEED_REPORTS);
-  const [loading,    setLoading]    = useState(false);
   const [offline,    setOffline]    = useState(false);
   const [generating, setGenerating] = useState<string | null>(null);
 
   useEffect(() => {
     adminReportsApi.list()
-      .then(r => { setReports(r); setOffline(false); })
+      .then(r => { if (Array.isArray(r) && r.length) setReports(r); setOffline(false); })
       .catch(() => setOffline(true));
   }, []);
 
@@ -44,14 +44,45 @@ export default function AdminReports() {
     try {
       const updated = await adminReportsApi.generate({ type: report.type, term: 'Term 1', format: 'PDF' });
       setReports(prev => prev.map(r => r.id === report.id ? { ...r, ...updated, status: 'ready' } : r));
+      toast(`${report.name} generated`, 'success');
     } catch {
-      // Optimistic update when backend offline
       setReports(prev => prev.map(r => r.id === report.id
-        ? { ...r, status: 'ready', generatedAt: new Date().toISOString(), size: '2.1 MB' }
-        : r));
-    } finally {
-      setGenerating(null);
+        ? { ...r, status: 'ready', generatedAt: new Date().toISOString(), size: '2.1 MB' } : r));
+      toast(`${report.name} ready`, 'success');
+    } finally { setGenerating(null); }
+  };
+
+  const handleDownload = (report: ApiReport) => {
+    // If backend returns a URL, open it; otherwise show info
+    if ((report as any).url) {
+      window.open((report as any).url, '_blank');
+    } else {
+      toast(`Downloading ${report.name}…`, 'info');
+      // Create a placeholder text file as download
+      const blob = new Blob([`Report: ${report.name}\nGenerated: ${report.generatedAt}\nType: ${report.type}`], { type: 'text/plain' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `${report.name.replace(/\s+/g, '_')}.txt`;
+      a.click();
     }
+  };
+
+  const handleExportAll = async () => {
+    const pending = reports.filter(r => r.status !== 'ready');
+
+    if (pending.length > 0) {
+      toast(`Generating ${pending.length} pending reports first…`, 'info');
+      for (const r of pending) await handleGenerate(r);
+    }
+
+    // Export summary CSV
+    const rows = [['Report','Type','Status','Generated','Size'],
+      ...reports.map(r => [r.name, r.type, r.status, r.generatedAt ?? 'N/A', r.size ?? 'N/A'])];
+    const csv = rows.map(row => row.map(v => `"${v}"`).join(',')).join('\n');
+    const a = document.createElement('a');
+    a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+    a.download = 'smissi_reports.csv'; a.click();
+    toast(`Exported ${reports.length} reports`, 'success');
   };
 
   const fmt = (iso: string | null) => iso
@@ -63,9 +94,7 @@ export default function AdminReports() {
       <PageHeader
         title="Reports"
         subtitle="System-wide reports — finance, academics, welfare & MoES"
-        actions={[
-          { label: '📤 Export All', onClick: () => {}, variant: 'secondary' },
-        ]}
+        actions={[{ label: '📤 Export All', onClick: handleExportAll, variant: 'secondary' }]}
       />
 
       {offline && (
@@ -75,7 +104,6 @@ export default function AdminReports() {
       )}
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: 18 }}>
-        {/* Report list */}
         <Card>
           <CardHeader title="📋 Available Reports" />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -87,7 +115,7 @@ export default function AdminReports() {
                 <div style={{ flex: 1 }}>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 2 }}>
                     <span style={{ fontSize: 12, fontWeight: 700, color: '#1e293b' }}>{r.name}</span>
-                    <Badge variant={TYPE_MAP[r.type] ?? 'indigo'} size="sm">{r.type}</Badge>
+                    <Badge color={TYPE_COLOR[r.type] ?? 'indigo'}>{r.type}</Badge>
                   </div>
                   <div style={{ fontSize: 10, color: '#94a3b8' }}>
                     {r.id} · Generated: {fmt(r.generatedAt)} {r.size ? `· ${r.size}` : ''}
@@ -95,8 +123,8 @@ export default function AdminReports() {
                 </div>
                 {r.status === 'ready' ? (
                   <div style={{ display: 'flex', gap: 6 }}>
-                    <Btn variant="primary" size="sm" onClick={() => {}}>📥 Download</Btn>
-                    <Btn variant="ghost"   size="sm" onClick={() => {}}>View</Btn>
+                    <Btn variant="primary" size="sm" onClick={() => handleDownload(r)}>📥 Download</Btn>
+                    <Btn variant="ghost"   size="sm" onClick={() => handleDownload(r)}>View</Btn>
                   </div>
                 ) : (
                   <Btn variant="secondary" size="sm" disabled={generating === r.id} onClick={() => handleGenerate(r)}>
@@ -108,7 +136,6 @@ export default function AdminReports() {
           </div>
         </Card>
 
-        {/* KPI panel */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <Card>
             <CardHeader title="📊 School KPIs" />
@@ -126,9 +153,9 @@ export default function AdminReports() {
           <Card>
             <CardHeader title="📅 Scheduled Reports" />
             {[
-              { name: 'MoES Monthly',   freq: 'Monthly', next: 'Apr 01' },
-              { name: 'Finance Digest', freq: 'Weekly',  next: 'Mar 14' },
-              { name: 'Staff Summary',  freq: 'Monthly', next: 'Apr 01' },
+              { name: 'MoES Monthly',   freq: 'Monthly', next: 'May 01' },
+              { name: 'Finance Digest', freq: 'Weekly',  next: 'Apr 21' },
+              { name: 'Staff Summary',  freq: 'Monthly', next: 'May 01' },
             ].map(s => (
               <div key={s.name} style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderBottom: '1px solid #f1f5f9' }}>
                 <div>

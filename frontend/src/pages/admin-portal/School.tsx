@@ -2,10 +2,9 @@ import { useState, useEffect } from 'react';
 import { PageHeader }  from '../../components/ui/PageHeader';
 import { Card, CardHeader } from '../../components/ui/Card';
 import { Btn }         from '../../components/ui/Btn';
-import { FormField }   from '../../components/ui/FormField';
+import { useToast }    from '../../contexts/ToastContext';
 import { schoolApi, type ApiSchool, type UpdateSchoolPayload } from '../../lib/api';
 
-/* ─── Seed / fallback ─────────────────────────────────────────────── */
 const SEED: ApiSchool = {
   id: '', name: 'SMISSI Secondary School', code: 'SSS/NGA/001',
   motto: 'Knowledge is Power', foundedYear: '1985',
@@ -19,15 +18,31 @@ const SEED: ApiSchool = {
   isActive: true, createdAt: '', updatedAt: '',
 };
 
-type Draft = UpdateSchoolPayload;
+const inputStyle = (disabled: boolean): React.CSSProperties => ({
+  width: '100%', padding: '8px 10px', borderRadius: 8,
+  border: '1px solid #e2e8f0', fontSize: 12, fontFamily: 'inherit',
+  boxSizing: 'border-box', background: disabled ? '#f8fafc' : '#fff',
+  color: disabled ? '#64748b' : '#1e293b',
+});
+
+const Field = ({ label, value, onChange, disabled, type = 'text' }: {
+  label: string; value: string; onChange: (v: string) => void;
+  disabled: boolean; type?: string;
+}) => (
+  <div>
+    <label style={{ fontSize: 11, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 4 }}>{label}</label>
+    <input type={type} value={value} onChange={e => onChange(e.target.value)}
+      disabled={disabled} style={inputStyle(disabled)} />
+  </div>
+);
 
 export default function AdminSchool() {
-  const [school,   setSchool]   = useState<ApiSchool>(SEED);
-  const [draft,    setDraft]    = useState<Draft>({});
-  const [editMode, setEdit]     = useState(false);
-  const [saving,   setSaving]   = useState(false);
-  const [offline,  setOffline]  = useState(false);
-  const [toast,    setToast]    = useState<string | null>(null);
+  const { toast } = useToast();
+  const [school,   setSchool]  = useState<ApiSchool>(SEED);
+  const [draft,    setDraft]   = useState<UpdateSchoolPayload>({});
+  const [editMode, setEdit]    = useState(false);
+  const [saving,   setSaving]  = useState(false);
+  const [offline,  setOffline] = useState(false);
 
   useEffect(() => {
     schoolApi.get()
@@ -35,44 +50,28 @@ export default function AdminSchool() {
       .catch(() => setOffline(true));
   }, []);
 
-  const val = (k: keyof Draft): string =>
-    (editMode ? (draft[k] ?? school[k as keyof ApiSchool]) : school[k as keyof ApiSchool]) as string ?? '';
+  const val = (k: keyof UpdateSchoolPayload): string =>
+    ((editMode ? (draft[k] ?? school[k as keyof ApiSchool]) : school[k as keyof ApiSchool]) as string) ?? '';
 
-  const set = (k: keyof Draft) => (v: string) =>
+  const set = (k: keyof UpdateSchoolPayload) => (v: string) =>
     setDraft(d => ({ ...d, [k]: v }));
-
-  const handleEdit = () => {
-    setDraft({});
-    setEdit(true);
-  };
-
-  const handleCancel = () => {
-    setDraft({});
-    setEdit(false);
-  };
 
   const handleSave = async () => {
     setSaving(true);
     try {
       const updated = await schoolApi.update(draft);
       setSchool(updated);
-      showToast('✅ School profile saved successfully!');
+      toast('School profile saved', 'success');
       setOffline(false);
     } catch {
-      // Offline — apply draft locally
       setSchool(prev => ({ ...prev, ...draft }));
-      showToast('⚠️ Saved locally (backend offline)');
+      toast('Saved locally (backend offline)', 'info');
     } finally {
-      setSaving(false);
-      setEdit(false);
-      setDraft({});
+      setSaving(false); setEdit(false); setDraft({});
     }
   };
 
-  const showToast = (msg: string) => {
-    setToast(msg);
-    setTimeout(() => setToast(null), 3000);
-  };
+  const handleCancel = () => { setDraft({}); setEdit(false); };
 
   return (
     <div>
@@ -82,19 +81,13 @@ export default function AdminSchool() {
         actions={[
           editMode
             ? { label: saving ? '⏳ Saving…' : '💾 Save Changes', onClick: handleSave, variant: 'primary' }
-            : { label: '✏️ Edit Profile', onClick: handleEdit, variant: 'secondary' },
+            : { label: '✏️ Edit Profile', onClick: () => { setDraft({}); setEdit(true); }, variant: 'secondary' },
         ]}
       />
 
-      {/* Toasts & banners */}
-      {toast && (
-        <div style={{ padding: '9px 14px', marginBottom: 12, borderRadius: 8, background: '#f0fdf4', border: '1px solid #bbf7d0', fontSize: 12, color: '#15803d' }}>
-          {toast}
-        </div>
-      )}
-      {offline && !toast && (
+      {offline && (
         <div style={{ padding: '9px 14px', marginBottom: 12, borderRadius: 8, background: '#fffbeb', border: '1px solid #fcd34d', fontSize: 11, color: '#92400e' }}>
-          ⚠️ Backend not connected — showing demo data. Changes will be applied locally only.
+          ⚠️ Backend not connected — showing demo data.
         </div>
       )}
 
@@ -104,14 +97,14 @@ export default function AdminSchool() {
         <Card>
           <CardHeader title="🏫 School Identity" />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <FormField label="School Name"  value={val('name')}        onChange={set('name')}        disabled={!editMode} />
+            <Field label="School Name"  value={val('name')}        onChange={set('name')}        disabled={!editMode} />
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <FormField label="School Code"  value={val('code')}       onChange={set('code')}        disabled={!editMode} />
-              <FormField label="Founded Year" value={val('foundedYear')} onChange={set('foundedYear')} disabled={!editMode} />
+              <Field label="School Code"  value={val('code')}       onChange={set('code')}        disabled={!editMode} />
+              <Field label="Founded Year" value={val('foundedYear')} onChange={set('foundedYear')} disabled={!editMode} />
             </div>
-            <FormField label="Motto"      value={val('motto')}      onChange={set('motto')}      disabled={!editMode} />
-            <FormField label="Type"       value={val('type')}       onChange={set('type')}       disabled={!editMode} />
-            <FormField label="Ownership"  value={val('ownership')}  onChange={set('ownership')}  disabled={!editMode} />
+            <Field label="Motto"     value={val('motto')}     onChange={set('motto')}     disabled={!editMode} />
+            <Field label="Type"      value={val('type')}      onChange={set('type')}      disabled={!editMode} />
+            <Field label="Ownership" value={val('ownership')} onChange={set('ownership')} disabled={!editMode} />
           </div>
         </Card>
 
@@ -119,13 +112,13 @@ export default function AdminSchool() {
         <Card>
           <CardHeader title="📞 Contact Details" />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <FormField label="District"  value={val('district')} onChange={set('district')} disabled={!editMode} />
-            <FormField label="Address"   value={val('address')}  onChange={set('address')}  disabled={!editMode} />
+            <Field label="District" value={val('district')} onChange={set('district')} disabled={!editMode} />
+            <Field label="Address"  value={val('address')}  onChange={set('address')}  disabled={!editMode} />
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <FormField label="Phone"   value={val('phone')}    onChange={set('phone')}    disabled={!editMode} />
-              <FormField label="Email"   value={val('email')}    onChange={set('email')}    disabled={!editMode} type="email" />
+              <Field label="Phone" value={val('phone')} onChange={set('phone')} disabled={!editMode} />
+              <Field label="Email" value={val('email')} onChange={set('email')} disabled={!editMode} type="email" />
             </div>
-            <FormField label="Website"   value={val('website')}  onChange={set('website')}  disabled={!editMode} />
+            <Field label="Website" value={val('website')} onChange={set('website')} disabled={!editMode} />
           </div>
         </Card>
 
@@ -133,9 +126,9 @@ export default function AdminSchool() {
         <Card>
           <CardHeader title="👥 Leadership" />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <FormField label="Head Teacher / Principal"        value={val('principalName')} onChange={set('principalName')} disabled={!editMode} />
-            <FormField label="District Education Officer (DEO)" value={val('deoName')}      onChange={set('deoName')}       disabled={!editMode} />
-            <FormField label="MoES School ID"                  value={val('moesId')}       onChange={set('moesId')}        disabled={!editMode} />
+            <Field label="Head Teacher / Principal"         value={val('principalName')} onChange={set('principalName')} disabled={!editMode} />
+            <Field label="District Education Officer (DEO)" value={val('deoName')}       onChange={set('deoName')}       disabled={!editMode} />
+            <Field label="MoES School ID"                   value={val('moesId')}        onChange={set('moesId')}        disabled={!editMode} />
           </div>
         </Card>
 
@@ -158,7 +151,7 @@ export default function AdminSchool() {
             ))}
           </div>
           <div style={{ marginTop: 12 }}>
-            <FormField label="Streams" value={val('streams')} onChange={set('streams')} disabled={!editMode} />
+            <Field label="Streams" value={val('streams')} onChange={set('streams')} disabled={!editMode} />
           </div>
         </Card>
       </div>

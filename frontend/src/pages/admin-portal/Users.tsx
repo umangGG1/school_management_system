@@ -118,15 +118,16 @@ function UserPanel({
     await new Promise(r => setTimeout(r, 700));
     const nextId = editUser ? editUser.id : `USR-${String(Math.floor(Math.random() * 900) + 100)}`;
     onSave({
-      id:      nextId,
-      name:    form.name.trim(),
-      role:    form.role,
-      email:   form.email.trim(),
-      phone:   form.phone.trim() || '—',
-      staffNo: form.staffNo.trim() || '—',
-      status:  'active',
-      last:    'Just now',
-    });
+      id:        nextId,
+      name:      form.name.trim(),
+      role:      form.role,
+      email:     form.email.trim(),
+      phone:     form.phone.trim() || '—',
+      staffNo:   form.staffNo.trim() || '—',
+      status:    'active',
+      last:      'Just now',
+      _password: form.password || undefined,
+    } as any);
     setSaving(false);
     onClose();
   };
@@ -473,7 +474,12 @@ export default function AdminUsers() {
         subtitle={`${users.length} total · ${active} active`}
         actions={[
           { label: '+ Add User', onClick: openNew,      variant: 'primary'   },
-          { label: '📤 Export',  onClick: () => {},     variant: 'secondary' },
+          { label: '📤 Export',  onClick: () => {
+            const rows = [['Name','Role','Email','Phone','Staff No','Status'],...filtered.map(u=>[u.name,u.role,u.email,u.phone,u.staffNo,u.status])];
+            const csv = rows.map(r=>r.map(v=>`"${v}"`).join(',')).join('\n');
+            const a = document.createElement('a'); a.href = 'data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
+            a.download = 'smissi_users.csv'; a.click();
+          }, variant: 'secondary' },
         ]}
       />
 

@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Student } from './entities/student.entity';
 import { StudentDiscipline, DisciplineStatus } from './entities/student-discipline.entity';
+import { AppCacheService, TTL } from '../common/cache/cache.service';
 
 @Injectable()
 export class StudentsService {
@@ -11,23 +12,42 @@ export class StudentsService {
     private readonly studentRepo: Repository<Student>,
     @InjectRepository(StudentDiscipline)
     private readonly disciplineRepo: Repository<StudentDiscipline>,
+    private readonly cache: AppCacheService,
   ) {}
 
   // ── Students ───────────────────────────────────────────────────────────────
 
   async countBySchool(schoolId: string): Promise<number> {
-    return this.studentRepo.count({ where: { schoolId, isActive: true } });
+    return this.cache.getOrSet(
+      `students:count:${schoolId}`,
+      () => this.studentRepo.count({ where: { schoolId, isActive: true } }),
+      TTL.SHORT,
+    );
   }
 
   async findAll(schoolId: string, page = 1, limit = 20): Promise<{ data: Student[]; total: number }> {
-    const [data, total] = await this.studentRepo.findAndCount({
-      where: { schoolId, isActive: true },
+    // Only cache the first page — subsequent pages are less frequent and have dynamic offsets
+    const cacheKey = page === 1 ? `students:list:${schoolId}:${limit}` : null;
+    const fetch = async () => {
+      const [data, total] = await this.studentRepo.findAndCount({
+        where: { schoolId, isActive: true },
+        relations: ['class'],
+        skip: (page - 1) * limit,
+        take: limit,
+        order: { lastName: 'ASC', firstName: 'ASC' },
+      });
+      return { data, total };
+    };
+    return cacheKey ? this.cache.getOrSet(cacheKey, fetch, TTL.SHORT) : fetch();
+  }
+
+  async findByUserId(userId: string, schoolId: string): Promise<Student> {
+    const student = await this.studentRepo.findOne({
+      where: { userId, schoolId },
       relations: ['class'],
-      skip: (page - 1) * limit,
-      take: limit,
-      order: { lastName: 'ASC', firstName: 'ASC' },
     });
-    return { data, total };
+    if (!student) throw new NotFoundException('Student profile not found');
+    return student;
   }
 
   async findOne(id: string, schoolId: string): Promise<Student> {
@@ -40,13 +60,25 @@ export class StudentsService {
   }
 
   async create(data: Partial<Student>): Promise<Student> {
-    return this.studentRepo.save(this.studentRepo.create(data));
+    const student = await this.studentRepo.save(this.studentRepo.create(data));
+    // Invalidate count and first-page list so dashboards reflect new enrollment
+    await Promise.all([
+      this.cache.del(`students:count:${student.schoolId}`),
+      this.cache.del(`students:list:${student.schoolId}:20`),
+    ]);
+    return student;
   }
 
   async update(id: string, schoolId: string, data: Partial<Student>): Promise<Student> {
     const student = await this.studentRepo.findOne({ where: { id, schoolId } });
     if (!student) throw new NotFoundException('Student not found');
-    return this.studentRepo.save({ ...student, ...data });
+    const updated = await this.studentRepo.save({ ...student, ...data });
+    // Deactivating a student changes the count — invalidate
+    if ('isActive' in data) {
+      await this.cache.del(`students:count:${schoolId}`);
+    }
+    await this.cache.del(`students:list:${schoolId}:20`);
+    return updated;
   }
 
   async countByClass(schoolId: string): Promise<{ classId: string; count: number }[]> {

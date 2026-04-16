@@ -7,6 +7,7 @@ import { Assessment } from './entities/assessment.entity';
 import { StudentAttendance, AttendanceStatus } from './entities/student-attendance.entity';
 import { TimetableEntry, CoverLesson, CoverStatus } from './entities/timetable.entity';
 import { LessonNote, LessonNoteStatus } from './entities/lesson-note.entity';
+import { AppCacheService, TTL } from '../common/cache/cache.service';
 
 export interface ClassPerformance {
   classId: string;
@@ -35,40 +36,61 @@ export class AcademicService {
     private readonly coverRepo: Repository<CoverLesson>,
     @InjectRepository(LessonNote)
     private readonly lessonNoteRepo: Repository<LessonNote>,
+    private readonly cache: AppCacheService,
   ) {}
 
   // ── Classes ────────────────────────────────────────────────────────────────
 
   async findClassesBySchool(schoolId: string): Promise<SchoolClass[]> {
-    return this.classRepo.find({
-      where: { schoolId, isActive: true },
-      order: { name: 'ASC', stream: 'ASC' },
-    });
+    return this.cache.getOrSet(
+      `classes:${schoolId}`,
+      () => this.classRepo.find({ where: { schoolId, isActive: true }, order: { name: 'ASC', stream: 'ASC' } }),
+      TTL.LONG,
+    );
   }
 
   async createClass(data: Partial<SchoolClass>): Promise<SchoolClass> {
-    return this.classRepo.save(this.classRepo.create(data));
+    const cls = await this.classRepo.save(this.classRepo.create(data));
+    await this.cache.del(`classes:${cls.schoolId}`);
+    return cls;
   }
 
   async updateClass(id: string, schoolId: string, data: Partial<SchoolClass>): Promise<SchoolClass> {
     const cls = await this.classRepo.findOne({ where: { id, schoolId } });
     if (!cls) throw new NotFoundException('Class not found');
-    return this.classRepo.save({ ...cls, ...data });
+    const updated = await this.classRepo.save({ ...cls, ...data });
+    await this.cache.del(`classes:${schoolId}`);
+    return updated;
   }
 
   // ── Subjects ───────────────────────────────────────────────────────────────
 
   async findSubjects(schoolId: string): Promise<Subject[]> {
-    return this.subjectRepo.find({ where: { schoolId }, order: { name: 'ASC' } });
+    return this.cache.getOrSet(
+      `subjects:${schoolId}`,
+      () => this.subjectRepo.find({ where: { schoolId }, order: { name: 'ASC' } }),
+      TTL.LONG,
+    );
   }
 
   async createSubject(data: Partial<Subject>): Promise<Subject> {
-    return this.subjectRepo.save(this.subjectRepo.create(data));
+    const subject = await this.subjectRepo.save(this.subjectRepo.create(data));
+    await this.cache.del(`subjects:${subject.schoolId}`);
+    return subject;
   }
 
   // ── Performance ────────────────────────────────────────────────────────────
 
   async classPerformanceSummary(
+    schoolId: string,
+    term: string,
+    academicYear: string,
+  ): Promise<ClassPerformance[]> {
+    const cacheKey = `perf:${schoolId}:${term}:${academicYear}`;
+    return this.cache.getOrSet(cacheKey, () => this._classPerformanceSummary(schoolId, term, academicYear), TTL.DASHBOARD);
+  }
+
+  private async _classPerformanceSummary(
     schoolId: string,
     term: string,
     academicYear: string,

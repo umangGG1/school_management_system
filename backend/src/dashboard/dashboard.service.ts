@@ -10,6 +10,7 @@ import { CalendarService } from '../calendar/calendar.service';
 import { BoardingService } from '../boarding/boarding.service';
 import { SecurityService } from '../security/security.service';
 import { MedicalService } from '../medical/medical.service';
+import { AppCacheService, TTL } from '../common/cache/cache.service';
 
 @Injectable()
 export class DashboardService {
@@ -25,9 +26,15 @@ export class DashboardService {
     private readonly boardingService: BoardingService,
     private readonly securityService: SecurityService,
     private readonly medicalService: MedicalService,
+    private readonly cache: AppCacheService,
   ) {}
 
   async headTeacherSummary(schoolId: string, term: string, academicYear: string) {
+    const cacheKey = `dashboard:ht:${schoolId}:${term}:${academicYear}`;
+    return this.cache.getOrSet(cacheKey, () => this._headTeacherSummary(schoolId, term, academicYear), TTL.DASHBOARD);
+  }
+
+  private async _headTeacherSummary(schoolId: string, term: string, academicYear: string) {
     const [
       totalStudents, staffAttendance, collectionSummary, classPerformance,
       pendingApprovals, recentActivity, pinnedAnnouncements, upcomingEvents,
@@ -102,38 +109,71 @@ export class DashboardService {
   }
 
   async academicSummary(schoolId: string, term: string, academicYear: string) {
-    const [classPerformance, studentCount] = await Promise.all([
-      this.academicService.classPerformanceSummary(schoolId, term, academicYear),
-      this.studentsService.countBySchool(schoolId),
-    ]);
-    return { classPerformance, totalStudents: studentCount };
+    const cacheKey = `dashboard:academic:${schoolId}:${term}:${academicYear}`;
+    return this.cache.getOrSet(
+      cacheKey,
+      async () => {
+        const [classPerformance, studentCount] = await Promise.all([
+          this.academicService.classPerformanceSummary(schoolId, term, academicYear),
+          this.studentsService.countBySchool(schoolId),
+        ]);
+        return { classPerformance, totalStudents: studentCount };
+      },
+      TTL.DASHBOARD,
+    );
   }
 
   async staffSummary(schoolId: string) {
-    const [staffList, attendance] = await Promise.all([
-      this.staffService.findAll(schoolId),
-      this.staffService.todayAttendanceSummary(schoolId),
-    ]);
-    return { staff: staffList, attendance };
+    const cacheKey = `dashboard:staff:${schoolId}`;
+    return this.cache.getOrSet(
+      cacheKey,
+      async () => {
+        const [staffList, attendance] = await Promise.all([
+          this.staffService.findAll(schoolId),
+          this.staffService.todayAttendanceSummary(schoolId),
+        ]);
+        return { staff: staffList, attendance };
+      },
+      TTL.SHORT,
+    );
   }
 
   async financeSummary(schoolId: string, term: string, academicYear: string) {
-    return this.financeService.collectionSummary(schoolId, term, academicYear);
+    const cacheKey = `dashboard:finance:${schoolId}:${term}:${academicYear}`;
+    return this.cache.getOrSet(
+      cacheKey,
+      () => this.financeService.collectionSummary(schoolId, term, academicYear),
+      TTL.DASHBOARD,
+    );
   }
 
   async boardingSummary(schoolId: string) {
-    const [summary, medical] = await Promise.all([
-      this.boardingService.summary(schoolId),
-      this.medicalService.stats(schoolId),
-    ]);
-    return { ...summary, sickBay: medical };
+    const cacheKey = `dashboard:boarding:${schoolId}`;
+    return this.cache.getOrSet(
+      cacheKey,
+      async () => {
+        const [summary, medical] = await Promise.all([
+          this.boardingService.summary(schoolId),
+          this.medicalService.stats(schoolId),
+        ]);
+        return { ...summary, sickBay: medical };
+      },
+      TTL.SHORT,
+    );
   }
 
   async securitySummary(schoolId: string, date?: string) {
-    const [overview, incidents] = await Promise.all([
-      this.securityService.overview(schoolId),
-      this.securityService.findIncidents(schoolId, 'OPEN'),
-    ]);
-    return { overview, openIncidents: incidents };
+    const cacheKey = `dashboard:security:${schoolId}`;
+    return this.cache.getOrSet(
+      cacheKey,
+      async () => {
+        const [overview, incidents] = await Promise.all([
+          this.securityService.overview(schoolId),
+          this.securityService.findIncidents(schoolId, 'OPEN'),
+        ]);
+        return { overview, openIncidents: incidents };
+      },
+      TTL.SHORT,
+    );
   }
 }

@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, LessThan } from 'typeorm';
+import { DataSource, Repository, LessThan } from 'typeorm';
 import { Invoice, InvoiceStatus } from './entities/invoice.entity';
 import { Payment, PaymentMethod } from './entities/payment.entity';
 import { FeeStructure } from './entities/fee-structure.entity';
@@ -17,6 +17,7 @@ export class FinanceService {
     private readonly feeStructureRepo: Repository<FeeStructure>,
     @InjectRepository(Expense)
     private readonly expenseRepo: Repository<Expense>,
+    private readonly dataSource: DataSource,
   ) {}
 
   // ── Collection Summary ─────────────────────────────────────────────────────
@@ -31,25 +32,39 @@ export class FinanceService {
     collectionRate: number;
     byClass: { classId: string; target: number; collected: number }[];
   }> {
-    const invoices = await this.invoiceRepo.find({
-      where: { schoolId, term, academicYear },
-      relations: ['student', 'student.class'],
-    });
+    // Single aggregate query — avoids loading every invoice + student relation into memory
+    const [totals]: { termTarget: string; collected: string }[] =
+      await this.dataSource.query(
+        `SELECT COALESCE(SUM(amount), 0) AS "termTarget",
+                COALESCE(SUM("paidAmount"), 0) AS "collected"
+         FROM invoices
+         WHERE school_id = $1 AND term = $2 AND "academicYear" = $3`,
+        [schoolId, term, academicYear],
+      );
 
-    const termTarget = invoices.reduce((sum, inv) => sum + Number(inv.amount), 0);
-    const collected = invoices.reduce((sum, inv) => sum + Number(inv.paidAmount), 0);
+    const termTarget = Number(totals.termTarget);
+    const collected = Number(totals.collected);
     const collectionRate = termTarget > 0 ? Math.round((collected / termTarget) * 100) : 0;
 
-    const classMap = new Map<string, { target: number; collected: number }>();
-    for (const inv of invoices) {
-      const cid = inv.student?.classId ?? 'unknown';
-      const entry = classMap.get(cid) ?? { target: 0, collected: 0 };
-      entry.target += Number(inv.amount);
-      entry.collected += Number(inv.paidAmount);
-      classMap.set(cid, entry);
-    }
+    // Per-class breakdown via JOIN — no N+1, uses idx_invoices_school_term + idx_students_class_school
+    const byClassRows: { classId: string; target: string; collected: string }[] =
+      await this.dataSource.query(
+        `SELECT s.class_id AS "classId",
+                COALESCE(SUM(i.amount), 0) AS target,
+                COALESCE(SUM(i."paidAmount"), 0) AS collected
+         FROM invoices i
+         JOIN students s ON s.id = i.student_id
+         WHERE i.school_id = $1 AND i.term = $2 AND i."academicYear" = $3
+         GROUP BY s.class_id`,
+        [schoolId, term, academicYear],
+      );
 
-    const byClass = Array.from(classMap.entries()).map(([classId, vals]) => ({ classId, ...vals }));
+    const byClass = byClassRows.map((row) => ({
+      classId: row.classId ?? 'unknown',
+      target: Number(row.target),
+      collected: Number(row.collected),
+    }));
+
     return { termTarget, collected, collectionRate, byClass };
   }
 
@@ -244,6 +259,17 @@ export class FinanceService {
     const item = await this.feeStructureRepo.findOne({ where: { id, schoolId } });
     if (!item) throw new Error('Fee structure item not found');
     return this.feeStructureRepo.save({ ...item, ...data });
+  }
+
+  async getInvoiceById(id: string, schoolId: string): Promise<Invoice> {
+    const invoice = await this.invoiceRepo.findOne({ where: { id, schoolId } });
+    if (!invoice) throw new NotFoundException(`Invoice ${id} not found`);
+    return invoice;
+  }
+
+  /** For IPN webhook only — no schoolId guard. */
+  async getInvoiceByIdUnsafe(id: string): Promise<Invoice | null> {
+    return this.invoiceRepo.findOne({ where: { id } });
   }
 }
 

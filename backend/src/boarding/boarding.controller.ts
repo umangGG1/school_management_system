@@ -15,6 +15,12 @@ import { RollCallEntryStatus } from './entities/boarding.entities';
 export class BoardingController {
   constructor(private readonly service: BoardingService) {}
 
+  @Get('me')
+  @Roles(UserRole.STUDENT)
+  getMyBoardingStatus(@CurrentUser() user: JwtPayload) {
+    return this.service.getStudentBoardingStatus(user.sub, user.schoolId);
+  }
+
   @Get('summary')
   summary(@CurrentUser() user: JwtPayload) {
     return this.service.summary(user.schoolId);
