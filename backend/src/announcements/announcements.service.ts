@@ -36,14 +36,14 @@ export class AnnouncementsService {
     const qb = this.repo
       .createQueryBuilder('a')
       .leftJoinAndSelect('a.createdBy', 'user')
-      .where('a.school_id = :schoolId AND a.is_deleted = false', { schoolId })
-      .orderBy('a.is_pinned', 'DESC')
-      .addOrderBy('a.created_at', 'DESC')
+      .where('a.schoolId = :schoolId AND a.isDeleted = false', { schoolId })
+      .orderBy('a.isPinned', 'DESC')
+      .addOrderBy('a.createdAt', 'DESC')
       .skip(skip)
       .take(limit);
 
     if (query?.category) qb.andWhere('a.category = :category', { category: query.category });
-    if (query?.audience) qb.andWhere('a.target_audience = :audience', { audience: query.audience });
+    if (query?.audience) qb.andWhere('a.targetAudience = :audience', { audience: query.audience });
 
     const [items, total] = await qb.getManyAndCount();
     return { items, total, page, limit };

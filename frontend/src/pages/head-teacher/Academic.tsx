@@ -18,12 +18,12 @@ export default function HTAcademic() {
             <h3 className="text-[15px] font-bold text-gray-900">Syllabus Coverage by Department</h3>
             <span className="text-[12px] text-gray-400">Week 8 of 13</span>
           </div>
-          <ProgressBar label="Mathematics" value={74} color="blue" />
-          <ProgressBar label="Sciences" value={68} color="green" />
-          <ProgressBar label="Languages" value={81} color="teal" />
-          <ProgressBar label="Humanities" value={72} color="purple" />
-          <ProgressBar label="Technical Subjects" value={55} color="amber" />
-          <ProgressBar label="Arts & Music" value={62} color="red" />
+          <ProgressBar label="Mathematics" value="74%" pct={74} color="blue" />
+          <ProgressBar label="Sciences" value="68%" pct={68} color="green" />
+          <ProgressBar label="Languages" value="81%" pct={81} color="teal" />
+          <ProgressBar label="Humanities" value="72%" pct={72} color="purple" />
+          <ProgressBar label="Technical Subjects" value="55%" pct={55} color="amber" />
+          <ProgressBar label="Arts & Music" value="62%" pct={62} color="red" />
 
           <div className="mt-5 pt-4 border-t border-gray-100 grid grid-cols-3 gap-4">
             {[['61%', 'Overall Coverage', 'bg-indigo-50 text-indigo-700'], ['68%', 'Science Avg', 'bg-emerald-50 text-emerald-700'], ['78%', 'Languages Avg', 'bg-teal-50 text-teal-700']].map(([v, l, cls]) => (

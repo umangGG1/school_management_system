@@ -72,7 +72,7 @@ import { ParentsModule }    from './parents/parents.module';
         database: config.get<string>('DB_NAME', 'smissi'),
         username: config.get<string>('DB_USER', 'smissi'),
         password: config.get<string>('DB_PASSWORD', 'smissi_dev'),
-        entities: [__dirname + '/**/*.entity{.ts,.js}'],
+        entities: [__dirname + '/**/*.entity{.ts,.js}', __dirname + '/**/*.entities{.ts,.js}'],
         migrations: [__dirname + '/database/migrations/*{.ts,.js}'],
         // synchronize only in dev — set DB_SYNC=true in .env during development
         synchronize:

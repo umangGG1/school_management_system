@@ -357,8 +357,10 @@ export interface ApiIntegration {
 }
 
 export const integrationsApi = {
-  list: ()            => req<ApiIntegration[]>('GET',  '/admin/integrations'),
-  test: (id: string)  => req<ApiIntegration>('POST', `/admin/integrations/${id}/test`),
+  list:       ()                                    => req<ApiIntegration[]>('GET',   '/admin/integrations'),
+  test:       (id: string)                          => req<ApiIntegration>('POST',  `/admin/integrations/${id}/test`),
+  update:     (id: string, body: Partial<ApiIntegration> & { config?: Record<string,string> }) =>
+                req<ApiIntegration>('PATCH', `/admin/integrations/${id}`, body),
 };
 
 /* ═══════════════════════════════════════════════════════════
@@ -423,10 +425,10 @@ export interface ApiAnnouncement {
 export interface CreateAnnouncementPayload {
   title: string;
   body: string;
-  category?: string;
-  audience?: string;
+  category?: string;      // ACADEMIC | ADMINISTRATIVE | URGENT | BOARDING | SAFETY | GENERAL
+  targetAudience?: string; // ALL | ALL_STAFF | ALL_STUDENTS | ALL_PARENTS | BOARDING_STAFF | BOARDING_STUDENTS | SPECIFIC_CLASS
   isPinned?: boolean;
-  publishAt?: string;
+  publishedAt?: string;
   expiresAt?: string;
   targetClassId?: string;
 }
@@ -505,11 +507,11 @@ export interface ApiMessage {
 }
 
 export interface SendMessagePayload {
-  toUserId?: string;
-  audience?: string;
+  recipientId?: string;
   subject: string;
   body: string;
-  parentId?: string;
+  category?: string;
+  parentMessageId?: string;
 }
 
 export const messagesApi = {
@@ -535,6 +537,7 @@ export interface ApiStaffMember {
   department: string;
   phone: string;
   isActive: boolean;
+  userId?: string;
   schoolId: string;
   createdAt: string;
 }
@@ -548,9 +551,9 @@ export interface ApiStaffAttendanceSummary {
 }
 
 export interface CreateStaffActionPayload {
-  staffId: string;
-  type: string;         // WARNING | COMMENDATION | LEAVE_APPROVED | LEAVE_REJECTED | PERFORMANCE_REVIEW | OTHER
-  description: string;
+  staffId: string;         // FK → staff_members.id
+  actionType: string;      // WARNING | VERBAL_WARNING | SUSPENSION | COMMENDATION | PROMOTION | DEMOTION | DISMISSAL | QUERY
+  reason: string;
   notes?: string;
 }
 

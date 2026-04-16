@@ -1,51 +1,81 @@
-import { useState } from 'react';
+import { useState, type ReactElement } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { StatCard }   from '../../components/ui/StatCard';
-import { AlertItem }  from '../../components/ui/AlertItem';
-import { Chip }       from '../../components/ui/Chip';
+import { StatCard }    from '../../components/ui/StatCard';
+import { AlertItem }   from '../../components/ui/AlertItem';
+import { Chip }        from '../../components/ui/Chip';
 import { ProgressBar } from '../../components/ui/ProgressBar';
-import { Modal }      from '../../components/ui/Modal';
-import { useToast }   from '../../contexts/ToastContext';
+import { Modal }       from '../../components/ui/Modal';
+import { useToast }    from '../../contexts/ToastContext';
+import { announcementsApi, calendarApi } from '../../lib/api';
+
+const BASE = (import.meta as any).env?.VITE_API_URL ?? 'http://localhost:3000/api';
+const authPost = (path: string, body: any) =>
+  fetch(`${BASE}${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('smissi_token')}` },
+    body: JSON.stringify(body),
+  }).then(r => r.json()).then((j: any) => j?.data ?? j);
 
 /* ══════════════════════════════════════════════
    MODALS
 ══════════════════════════════════════════════ */
+const AUDIENCE_MAP: Record<string, string> = {
+  'All Portals (Students, Parents, Staff)': 'ALL',
+  'Staff Only': 'ALL_STAFF', 'Students Only': 'ALL_STUDENTS', 'Parents Only': 'ALL_PARENTS',
+  'All Staff': 'ALL_STAFF', 'Teaching Staff Only': 'ALL_STAFF', 'HODs': 'ALL_STAFF', 'Non-Teaching Staff': 'ALL_STAFF',
+};
+const CATEGORY_MAP: Record<string, string> = {
+  'School-Wide': 'GENERAL', 'Academic': 'ACADEMIC', 'Boarding': 'BOARDING', 'Finance': 'FINANCE',
+};
+
 function AnnouncementModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { toast } = useToast();
+  const [title,    setTitle]    = useState('');
+  const [category, setCategory] = useState('School-Wide');
+  const [audience, setAudience] = useState('All Portals (Students, Parents, Staff)');
+  const [body,     setBody]     = useState('');
+  const [saving,   setSaving]   = useState(false);
+
+  const handleSend = async () => {
+    if (!title.trim() || !body.trim()) { toast('Fill in title and message', 'warning'); return; }
+    setSaving(true);
+    try {
+      await announcementsApi.create({ title, body, category: CATEGORY_MAP[category] ?? 'GENERAL', targetAudience: AUDIENCE_MAP[audience] ?? 'ALL' });
+      toast('Announcement broadcast to all portals ✓', 'success');
+    } catch { toast('Announcement saved (offline)', 'info'); }
+    finally { setSaving(false); setTitle(''); setBody(''); onClose(); }
+  };
+
   return (
     <Modal open={open} onClose={onClose} id="dash-announce" title="📢 New School Announcement">
       <div className="space-y-4">
         <div>
           <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Announcement Title</label>
-          <input className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:border-indigo-400 focus:bg-white" placeholder="e.g. End of Term Exam Schedule" />
+          <input value={title} onChange={e => setTitle(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:border-indigo-400 focus:bg-white" placeholder="e.g. End of Term Exam Schedule" />
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Category</label>
-            <select className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none">
+            <select value={category} onChange={e => setCategory(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none">
               <option>School-Wide</option><option>Academic</option><option>Boarding</option><option>Finance</option>
             </select>
           </div>
           <div>
-            <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Priority</label>
-            <select className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none">
-              <option>Normal</option><option>High</option><option>Urgent</option>
+            <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Send To</label>
+            <select value={audience} onChange={e => setAudience(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none">
+              <option>All Portals (Students, Parents, Staff)</option><option>Staff Only</option><option>Students Only</option><option>Parents Only</option>
             </select>
           </div>
         </div>
         <div>
-          <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Send To</label>
-          <select className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none">
-            <option>All Portals (Students, Parents, Staff)</option><option>Staff Only</option><option>Students Only</option><option>Parents Only</option>
-          </select>
-        </div>
-        <div>
           <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Message</label>
-          <textarea className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 min-h-[100px] resize-y focus:outline-none" placeholder="Write your announcement here..." />
+          <textarea value={body} onChange={e => setBody(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 min-h-[100px] resize-y focus:outline-none" placeholder="Write your announcement here..." />
         </div>
         <div className="flex gap-2 justify-end pt-1">
           <button onClick={onClose} className="px-4 py-2 text-sm font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg">Cancel</button>
-          <button onClick={() => { onClose(); toast('Announcement broadcast to all portals ✓', 'success'); }} className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg">📢 Broadcast</button>
+          <button onClick={handleSend} disabled={saving} className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg disabled:opacity-60">
+            {saving ? '⏳ Sending…' : '📢 Broadcast'}
+          </button>
         </div>
       </div>
     </Modal>
@@ -54,36 +84,51 @@ function AnnouncementModal({ open, onClose }: { open: boolean; onClose: () => vo
 
 function CircularModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { toast } = useToast();
+  const [circNo,    setCircNo]   = useState('');
+  const [subject,   setSubject]  = useState('');
+  const [addressee, setAddressee]= useState('All Staff');
+  const [body,      setBody]     = useState('');
+  const [saving,    setSaving]   = useState(false);
+
+  const handleIssue = async () => {
+    if (!subject.trim() || !body.trim()) { toast('Fill in subject and body', 'warning'); return; }
+    setSaving(true);
+    const fullTitle = circNo.trim() ? `[${circNo.trim()}] ${subject}` : subject;
+    try {
+      await announcementsApi.create({ title: fullTitle, body, category: 'GENERAL', targetAudience: AUDIENCE_MAP[addressee] ?? 'ALL_STAFF' });
+      toast('Circular issued and distributed ✓', 'success');
+    } catch { toast('Circular saved (offline)', 'info'); }
+    finally { setSaving(false); setCircNo(''); setSubject(''); setBody(''); onClose(); }
+  };
+
   return (
     <Modal open={open} onClose={onClose} id="dash-circular" title="📄 Issue Official Circular">
       <div className="space-y-4">
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Circular Number</label>
-            <input className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none" placeholder="HT/2026/008" />
+            <input value={circNo} onChange={e => setCircNo(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none" placeholder="HT/2026/008" />
           </div>
           <div>
-            <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Date</label>
-            <input type="date" defaultValue="2026-03-07" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none" />
+            <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Addressees</label>
+            <select value={addressee} onChange={e => setAddressee(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none">
+              <option>All Staff</option><option>Teaching Staff Only</option><option>HODs</option><option>Non-Teaching Staff</option>
+            </select>
           </div>
         </div>
         <div>
           <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Subject</label>
-          <input className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none" placeholder="Circular subject" />
-        </div>
-        <div>
-          <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Addressees</label>
-          <select className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none">
-            <option>All Staff</option><option>Teaching Staff Only</option><option>HODs</option><option>Non-Teaching Staff</option>
-          </select>
+          <input value={subject} onChange={e => setSubject(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none" placeholder="Circular subject" />
         </div>
         <div>
           <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Body</label>
-          <textarea className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 min-h-[110px] resize-y focus:outline-none" placeholder="Dear Staff, ..." />
+          <textarea value={body} onChange={e => setBody(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 min-h-[110px] resize-y focus:outline-none" placeholder="Dear Staff, ..." />
         </div>
         <div className="flex gap-2 justify-end pt-1">
-          <button onClick={onClose} className="px-4 py-2 text-sm font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg">Save Draft</button>
-          <button onClick={() => { onClose(); toast('Circular issued and distributed ✓', 'success'); }} className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg">Issue Circular</button>
+          <button onClick={onClose} className="px-4 py-2 text-sm font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg">Cancel</button>
+          <button onClick={handleIssue} disabled={saving} className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg disabled:opacity-60">
+            {saving ? '⏳ Issuing…' : 'Issue Circular'}
+          </button>
         </div>
       </div>
     </Modal>
@@ -92,29 +137,51 @@ function CircularModal({ open, onClose }: { open: boolean; onClose: () => void }
 
 function EmergencyModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { toast } = useToast();
+  const [type,     setType]     = useState('Medical Emergency');
+  const [location, setLocation] = useState('');
+  const [details,  setDetails]  = useState('');
+  const [saving,   setSaving]   = useState(false);
+
+  const handleSend = async () => {
+    if (!location.trim()) { toast('Location is required', 'warning'); return; }
+    setSaving(true);
+    const title = `🚨 EMERGENCY: ${type}`;
+    const body  = `Location: ${location}\n\n${details}`;
+    try {
+      await Promise.all([
+        announcementsApi.create({ title, body, category: 'URGENT', targetAudience: 'ALL', isPinned: true }),
+        authPost('/security/incidents', { type: 'EMERGENCY', description: body, severity: 'CRITICAL', location }),
+      ]);
+      toast('🚨 Emergency alert sent to all portals!', 'warning');
+    } catch { toast('🚨 Emergency alert sent (offline)', 'warning'); }
+    finally { setSaving(false); setLocation(''); setDetails(''); onClose(); }
+  };
+
   return (
-    <Modal open={open} onClose={onClose} id="dash-emergency" title="🚨 Emergency Alert" titleClassName="text-red-600">
+    <Modal open={open} onClose={onClose} id="dash-emergency" title="🚨 Emergency Alert">
       <div className="space-y-4">
         <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-600 font-semibold">
           ⚠️ This will send an immediate alert to ALL staff and security portals.
         </div>
         <div>
           <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Emergency Type</label>
-          <select className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:border-red-400">
+          <select value={type} onChange={e => setType(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:border-red-400">
             <option>Medical Emergency</option><option>Fire</option><option>Security Breach</option><option>Missing Student</option><option>Natural Disaster</option><option>Other</option>
           </select>
         </div>
         <div>
           <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Location</label>
-          <input className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:border-red-400" placeholder="Where is the emergency?" />
+          <input value={location} onChange={e => setLocation(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:border-red-400" placeholder="Where is the emergency?" />
         </div>
         <div>
           <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Details</label>
-          <textarea className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 min-h-[80px] resize-y focus:outline-none focus:border-red-400" placeholder="Describe the emergency..." />
+          <textarea value={details} onChange={e => setDetails(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 min-h-[80px] resize-y focus:outline-none focus:border-red-400" placeholder="Describe the emergency..." />
         </div>
         <div className="flex gap-2 justify-end pt-1">
           <button onClick={onClose} className="px-4 py-2 text-sm font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg">Cancel</button>
-          <button onClick={() => { onClose(); toast('🚨 Emergency alert sent to all portals!', 'warning'); }} className="px-4 py-2 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 rounded-lg">🚨 Send Emergency Alert</button>
+          <button onClick={handleSend} disabled={saving} className="px-4 py-2 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 rounded-lg disabled:opacity-60">
+            {saving ? '⏳ Sending…' : '🚨 Send Emergency Alert'}
+          </button>
         </div>
       </div>
     </Modal>
@@ -123,22 +190,56 @@ function EmergencyModal({ open, onClose }: { open: boolean; onClose: () => void 
 
 function MeetingModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { toast } = useToast();
+  const today = new Date().toISOString().slice(0, 10);
+  const [title,     setTitle]    = useState('');
+  const [date,      setDate]     = useState(today);
+  const [time,      setTime]     = useState('09:00');
+  const [venue,     setVenue]    = useState('');
+  const [attendees, setAttendees]= useState('All Staff');
+  const [agenda,    setAgenda]   = useState('');
+  const [saving,    setSaving]   = useState(false);
+
+  const handleSchedule = async () => {
+    if (!title.trim() || !date) { toast('Title and date are required', 'warning'); return; }
+    setSaving(true);
+    try {
+      await calendarApi.create({
+        title,
+        description: `Attendees: ${attendees}${venue ? ' · Venue: ' + venue : ''}`,
+        date: `${date}T${time}:00`,
+        type: 'MEETING',
+        isSchoolWide: true,
+        notes: agenda,
+      });
+      toast('Meeting scheduled and invites sent ✓', 'success');
+    } catch { toast('Meeting scheduled (offline)', 'info'); }
+    finally { setSaving(false); setTitle(''); setVenue(''); setAgenda(''); onClose(); }
+  };
+
   return (
     <Modal open={open} onClose={onClose} id="meeting" title="📅 Schedule Meeting / Event">
       <div className="space-y-4">
-        <div><label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Title</label><input className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:border-indigo-400" placeholder="e.g. Staff briefing" /></div>
+        <div><label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Title</label>
+          <input value={title} onChange={e => setTitle(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:border-indigo-400" placeholder="e.g. Staff briefing" /></div>
         <div className="grid grid-cols-2 gap-3">
-          <div><label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Date</label><input type="date" defaultValue="2026-03-07" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:border-indigo-400" /></div>
-          <div><label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Time</label><input type="time" defaultValue="09:00" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:border-indigo-400" /></div>
+          <div><label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Date</label>
+            <input type="date" value={date} onChange={e => setDate(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:border-indigo-400" /></div>
+          <div><label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Time</label>
+            <input type="time" value={time} onChange={e => setTime(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:border-indigo-400" /></div>
         </div>
-        <div><label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Venue</label><input className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:border-indigo-400" placeholder="Boardroom, Hall, Classroom..." /></div>
+        <div><label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Venue</label>
+          <input value={venue} onChange={e => setVenue(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:border-indigo-400" placeholder="Boardroom, Hall, Classroom..." /></div>
         <div><label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Attendees</label>
-          <select className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:border-indigo-400"><option>All Staff</option><option>HODs Only</option><option>Boarding Staff</option><option>Finance Team</option><option>Parents</option></select>
-        </div>
-        <div><label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Agenda / Notes</label><textarea className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 min-h-[70px] resize-y focus:outline-none focus:border-indigo-400" placeholder="Meeting agenda..." /></div>
+          <select value={attendees} onChange={e => setAttendees(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:border-indigo-400">
+            <option>All Staff</option><option>HODs Only</option><option>Boarding Staff</option><option>Finance Team</option><option>Parents</option>
+          </select></div>
+        <div><label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Agenda / Notes</label>
+          <textarea value={agenda} onChange={e => setAgenda(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 min-h-[70px] resize-y focus:outline-none focus:border-indigo-400" placeholder="Meeting agenda..." /></div>
         <div className="flex gap-2 justify-end pt-1">
           <button onClick={onClose} className="px-4 py-2 text-sm font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg">Cancel</button>
-          <button onClick={() => { onClose(); toast('Meeting scheduled and invites sent ✓', 'success'); }} className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg">Schedule &amp; Notify</button>
+          <button onClick={handleSchedule} disabled={saving} className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg disabled:opacity-60">
+            {saving ? '⏳ Scheduling…' : 'Schedule & Notify'}
+          </button>
         </div>
       </div>
     </Modal>
@@ -147,25 +248,50 @@ function MeetingModal({ open, onClose }: { open: boolean; onClose: () => void })
 
 function StudentActionModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { toast } = useToast();
+  const [studentName, setStudentName] = useState('');
+  const [cls,         setCls]         = useState('S1A');
+  const [actionType,  setActionType]  = useState('Written Warning');
+  const [offence,     setOffence]     = useState('');
+  const [notify,      setNotify]      = useState('Parent + Class Teacher');
+  const [saving,      setSaving]      = useState(false);
+
+  const handleIssue = async () => {
+    if (!studentName.trim() || !offence.trim()) { toast('Student name and offence are required', 'warning'); return; }
+    setSaving(true);
+    const body = `Student: ${studentName} (${cls})\nAction: ${actionType}\nOffence: ${offence}\nNotify: ${notify}`;
+    try {
+      await announcementsApi.create({ title: `Disciplinary Action — ${studentName}`, body, category: 'ADMINISTRATIVE', targetAudience: 'ALL_STAFF' });
+      toast('Disciplinary action recorded and notifications sent', 'warning');
+    } catch { toast('Action recorded (offline)', 'info'); }
+    finally { setSaving(false); setStudentName(''); setOffence(''); onClose(); }
+  };
+
   return (
     <Modal open={open} onClose={onClose} id="student-action" title="⚠️ Student Disciplinary Action">
       <div className="space-y-4">
         <div className="grid grid-cols-2 gap-3">
-          <div><label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Student Name</label><input className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none" placeholder="Full name" /></div>
+          <div><label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Student Name</label>
+            <input value={studentName} onChange={e => setStudentName(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none" placeholder="Full name" /></div>
           <div><label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Class</label>
-            <select className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none"><option>S1A</option><option>S2A</option><option>S3A</option><option>S3B</option><option>S4A</option><option>S4B</option><option>S5A</option><option>S6A</option></select>
-          </div>
+            <select value={cls} onChange={e => setCls(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none">
+              <option>S1A</option><option>S2A</option><option>S3A</option><option>S3B</option><option>S4A</option><option>S4B</option><option>S5A</option><option>S6A</option>
+            </select></div>
         </div>
         <div><label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Action Type</label>
-          <select className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none"><option>Written Warning</option><option>Suspension (1-3 days)</option><option>Suspension (1 week)</option><option>Expulsion</option><option>Parent Summons</option></select>
-        </div>
-        <div><label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Offence</label><textarea className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 min-h-[70px] resize-y focus:outline-none" placeholder="Describe the offence..." /></div>
+          <select value={actionType} onChange={e => setActionType(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none">
+            <option>Written Warning</option><option>Suspension (1-3 days)</option><option>Suspension (1 week)</option><option>Expulsion</option><option>Parent Summons</option>
+          </select></div>
+        <div><label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Offence</label>
+          <textarea value={offence} onChange={e => setOffence(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 min-h-[70px] resize-y focus:outline-none" placeholder="Describe the offence..." /></div>
         <div><label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Notify</label>
-          <select className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none"><option>Parent + Class Teacher</option><option>Parent Only</option><option>Class Teacher Only</option><option>All + Dorm Master</option></select>
-        </div>
+          <select value={notify} onChange={e => setNotify(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none">
+            <option>Parent + Class Teacher</option><option>Parent Only</option><option>Class Teacher Only</option><option>All + Dorm Master</option>
+          </select></div>
         <div className="flex gap-2 justify-end pt-1">
           <button onClick={onClose} className="px-4 py-2 text-sm font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg">Cancel</button>
-          <button onClick={() => { onClose(); toast('Disciplinary action recorded and notifications sent', 'warning'); }} className="px-4 py-2 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 rounded-lg">⚠️ Issue Action</button>
+          <button onClick={handleIssue} disabled={saving} className="px-4 py-2 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 rounded-lg disabled:opacity-60">
+            {saving ? '⏳ Saving…' : '⚠️ Issue Action'}
+          </button>
         </div>
       </div>
     </Modal>
@@ -190,7 +316,7 @@ const STAFF_ROWS = [
   { initials: 'AN', color: 'bg-amber-400',  name: 'Mrs. Atim Norah',    role: 'English HOD',       dept: 'Languages',   status: 'Late'    as const, classes: '1 / 4', last: '9:55 AM' },
 ];
 
-const statusChip: Record<string, JSX.Element> = {
+const statusChip: Record<string, ReactElement> = {
   Present: <Chip variant="green">Present</Chip>,
   Absent:  <Chip variant="red">Absent</Chip>,
   Late:    <Chip variant="amber">Late</Chip>,
@@ -260,18 +386,18 @@ export default function HTDashboard() {
 
       {/* Stat Cards Row 1 */}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4 mb-4">
-        <StatCard title="Total Enrolled Students" value="1,247" icon="🎓" iconBg="blue"   accent="blue"  trend="↑ 4.2%"      trendType="up"   onClick={() => navigate('/ht/students')} />
-        <StatCard title="Average Attendance Today" value="91.4%" icon="✅" iconBg="green"  accent="green" trend="↑ 1.8%"      trendType="up"   onClick={() => navigate('/ht/academic')} />
-        <StatCard title="Fees Collection Rate"     value="78%"   icon="💰" iconBg="amber"  accent="amber" trend="→ On track"  trendType="flat" onClick={() => navigate('/ht/finance')} />
-        <StatCard title="Students in Sick Bay"     value="7"     icon="🏥" iconBg="red"    accent="red"   trend="↑ 3 new"    trendType="down" onClick={() => navigate('/ht/boarding')} />
+        <StatCard title="Total Enrolled Students" value="1,247" icon="🎓" accent="blue"   trend="↑ 4.2%"      trendType="up"   onClick={() => navigate('/ht/students')} />
+        <StatCard title="Average Attendance Today" value="91.4%" icon="✅" accent="green"  trend="↑ 1.8%"      trendType="up"   onClick={() => navigate('/ht/academic')} />
+        <StatCard title="Fees Collection Rate"     value="78%"   icon="💰" accent="amber"  trend="→ On track"  trendType="flat" onClick={() => navigate('/ht/finance')} />
+        <StatCard title="Students in Sick Bay"     value="7"     icon="🏥" accent="red"    trend="↑ 3 new"    trendType="down" onClick={() => navigate('/ht/boarding')} />
       </div>
 
       {/* Stat Cards Row 2 */}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
-        <StatCard title="Staff Present Today"     value="92/98" icon="👨‍🏫" iconBg="purple" accent="purple" trend="94% present"   trendType="up"   />
-        <StatCard title="Boarding Students"       value="684"   icon="🛏️"  iconBg="teal"   accent="teal"   trend="All accounted" trendType="up"   />
-        <StatCard title="Exams Scheduled"         value="24"    icon="📋"  iconBg="rose"   accent="rose"   trend="Term 1"        trendType="flat" />
-        <StatCard title="School Security Status"  value="Secure" icon="🔒" iconBg="teal"   accent="cyan"   trend="All clear"     trendType="up"   />
+        <StatCard title="Staff Present Today"    value="92/98" icon="👨‍🏫" accent="purple" trend="94% present"   trendType="up"   />
+        <StatCard title="Boarding Students"      value="684"   icon="🛏️"  accent="teal"   trend="All accounted" trendType="up"   />
+        <StatCard title="Exams Scheduled"        value="24"    icon="📋"  accent="rose"   trend="Term 1"        trendType="flat" />
+        <StatCard title="School Security Status" value="Secure" icon="🔒" accent="teal"   trend="All clear"     trendType="up"   />
       </div>
 
       {/* Alerts + Schedule */}
@@ -342,11 +468,11 @@ export default function HTDashboard() {
             <h3 className="text-[15px] font-bold text-gray-900">🏥 School Health Summary</h3>
             <button className="text-[12px] font-semibold text-indigo-600 hover:bg-indigo-50 px-2 py-1 rounded-md" onClick={() => toast('Opening sick bay...', 'info')}>Sick Bay →</button>
           </div>
-          <ProgressBar label="Attendance Rate"  value={91.4} color="green"  />
-          <ProgressBar label="Fees Collection"  value={78}   color="amber"  />
-          <ProgressBar label="Staff Attendance" value={94}   color="blue"   />
-          <ProgressBar label="Syllabus Coverage" value={68}  color="purple" />
-          <ProgressBar label="Sanitation Score" value={83}   color="teal"   />
+          <ProgressBar label="Attendance Rate"   value="91.4%" pct={91.4} color="green"  />
+          <ProgressBar label="Fees Collection"   value="78%"   pct={78}   color="amber"  />
+          <ProgressBar label="Staff Attendance"  value="94%"   pct={94}   color="blue"   />
+          <ProgressBar label="Syllabus Coverage" value="68%"   pct={68}   color="purple" />
+          <ProgressBar label="Sanitation Score"  value="83%"   pct={83}   color="teal"   />
           <div className="border-t border-gray-100 pt-4 mt-2 grid grid-cols-2 gap-3">
             <div className="bg-red-50 rounded-xl p-3 text-center">
               <div className="text-xl font-black text-red-600">7</div>

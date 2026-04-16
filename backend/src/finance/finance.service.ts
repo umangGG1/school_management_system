@@ -36,9 +36,9 @@ export class FinanceService {
     const [totals]: { termTarget: string; collected: string }[] =
       await this.dataSource.query(
         `SELECT COALESCE(SUM(amount), 0) AS "termTarget",
-                COALESCE(SUM(paid_amount), 0) AS "collected"
+                COALESCE(SUM("paidAmount"), 0) AS "collected"
          FROM invoices
-         WHERE school_id = $1 AND term = $2 AND academic_year = $3`,
+         WHERE school_id = $1 AND term = $2 AND "academicYear" = $3`,
         [schoolId, term, academicYear],
       );
 
@@ -51,10 +51,10 @@ export class FinanceService {
       await this.dataSource.query(
         `SELECT s.class_id AS "classId",
                 COALESCE(SUM(i.amount), 0) AS target,
-                COALESCE(SUM(i.paid_amount), 0) AS collected
+                COALESCE(SUM(i."paidAmount"), 0) AS collected
          FROM invoices i
          JOIN students s ON s.id = i.student_id
-         WHERE i.school_id = $1 AND i.term = $2 AND i.academic_year = $3
+         WHERE i.school_id = $1 AND i.term = $2 AND i."academicYear" = $3
          GROUP BY s.class_id`,
         [schoolId, term, academicYear],
       );

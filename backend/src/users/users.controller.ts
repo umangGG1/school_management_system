@@ -7,7 +7,7 @@ import { RolesGuard }     from '../common/guards/roles.guard';
 import { Roles }          from '../common/decorators/roles.decorator';
 import { CurrentUser }    from '../common/decorators/current-user.decorator';
 import { UsersService }   from './users.service';
-import { JwtPayload }     from '../auth/auth.service';
+import type { JwtPayload } from '../auth/auth.service';
 import { UserRole }       from './entities/user.entity';
 import {
   CreateUserDto, UpdateUserDto, UpdateProfileDto, ListUsersQueryDto,

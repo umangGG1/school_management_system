@@ -3,6 +3,7 @@ import { PageHeader } from '../../components/ui/PageHeader';
 import { Card, CardHeader } from '../../components/ui/Card';
 import { Badge }      from '../../components/ui/Badge';
 import { Btn }        from '../../components/ui/Btn';
+import { useToast }   from '../../contexts/ToastContext';
 
 /* ─── Inline API for announcements ───────────────────────────────── */
 const BASE = (import.meta as any).env?.VITE_API_URL ?? 'http://localhost:3000/api';
@@ -37,6 +38,7 @@ const fmtDate = (iso: string) => {
 };
 
 export default function AdminComms() {
+  const { toast } = useToast();
   const [compose,        setCompose]   = useState(false);
   const [to,             setTo]        = useState('');
   const [subject,        setSubject]   = useState('');
@@ -45,6 +47,7 @@ export default function AdminComms() {
   const [sending,        setSending]   = useState(false);
   const [offline,        setOffline]   = useState(false);
   const [sent,           setSent]      = useState(false);
+  const [showAll,        setShowAll]   = useState(false);
 
   useEffect(() => {
     announcementsApi.list()
@@ -56,7 +59,7 @@ export default function AdminComms() {
     if (!to.trim() || !subject.trim() || !body.trim()) return;
     setSending(true);
     try {
-      const ann = await announcementsApi.create({ title: subject, body, audience: to });
+      const ann = await announcementsApi.create({ title: subject, body, targetAudience: to });
       setAnns(prev => [{ ...ann, title: subject, audience: to, createdAt: new Date().toISOString(), reach: 1 }, ...prev]);
       setOffline(false);
     } catch {
@@ -113,7 +116,7 @@ export default function AdminComms() {
               <Btn variant="primary"   onClick={handleSend} disabled={sending}>
                 {sending ? '⏳ Sending…' : '📤 Send'}
               </Btn>
-              <Btn variant="secondary" onClick={() => {}}>SMS as well</Btn>
+              <Btn variant="secondary" onClick={() => toast('SMS dispatch via Africa\'s Talking — configured in Integrations.', 'info')}>SMS as well</Btn>
             </div>
           </div>
         </Card>
@@ -151,11 +154,11 @@ export default function AdminComms() {
           <CardHeader title="📢 Sent Announcements" />
           {announcements.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '24px 0', color: '#94a3b8', fontSize: 12 }}>No announcements yet.</div>
-          ) : announcements.slice(0, 8).map((a, i) => (
+          ) : (showAll ? announcements : announcements.slice(0, 8)).map((a, i) => (
             <div key={i} style={{ padding: '10px 0', borderBottom: '1px solid #f1f5f9' }}>
               <div style={{ fontWeight: 700, fontSize: 12, color: '#1e293b', marginBottom: 4 }}>{a.title}</div>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                <Badge variant="indigo" size="sm">👥 {a.audience}</Badge>
+                <Badge color="indigo">👥 {a.audience}</Badge>
                 <span style={{ fontSize: 10, color: '#94a3b8' }}>
                   {fmtDate(a.createdAt)}
                   {a.reach ? ` · ${a.reach} recipients` : ''}
@@ -163,9 +166,13 @@ export default function AdminComms() {
               </div>
             </div>
           ))}
-          <div style={{ marginTop: 12 }}>
-            <Btn variant="ghost" size="sm" onClick={() => {}}>View all sent →</Btn>
-          </div>
+          {announcements.length > 8 && (
+            <div style={{ marginTop: 12 }}>
+              <Btn variant="ghost" size="sm" onClick={() => setShowAll(v => !v)}>
+                {showAll ? 'Show less ↑' : `View all sent → (${announcements.length})`}
+              </Btn>
+            </div>
+          )}
         </Card>
       </div>
     </div>

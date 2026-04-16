@@ -8,6 +8,7 @@ import {
 } from 'typeorm';
 import { School } from '../../schools/entities/school.entity';
 import { User } from '../../users/entities/user.entity';
+import { StaffMember } from './staff.entity';
 
 export enum StaffActionType {
   WARNING = 'WARNING',
@@ -30,9 +31,9 @@ export class StaffAction {
 
   @Column({ name: 'school_id' }) schoolId: string;
 
-  @ManyToOne(() => User)
+  @ManyToOne(() => StaffMember, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'staff_id' })
-  staff: User;
+  staff: StaffMember;
 
   @Column({ name: 'staff_id' }) staffId: string;
 

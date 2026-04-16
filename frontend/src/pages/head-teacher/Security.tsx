@@ -18,10 +18,10 @@ export default function HTSecurity() {
       </div>
 
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
-        <StatCard title="Overall Status" value="Secure" icon="🔒" iconBg="green" accent="green" trend="All clear" trendType="up" />
-        <StatCard title="Gates Operational" value="4/4" icon="🚪" iconBg="blue" accent="blue" />
-        <StatCard title="Visitors On Campus" value="12" icon="🚗" iconBg="amber" accent="amber" />
-        <StatCard title="Active Incidents" value="0" icon="🚨" iconBg="red" accent="red" trend="All clear" trendType="up" />
+        <StatCard title="Overall Status" value="Secure" icon="🔒" accent="green" trend="All clear" trendType="up" />
+        <StatCard title="Gates Operational" value="4/4" icon="🚪" accent="blue" />
+        <StatCard title="Visitors On Campus" value="12" icon="🚗" accent="amber" />
+        <StatCard title="Active Incidents" value="0" icon="🚨" accent="red" trend="All clear" trendType="up" />
       </div>
 
       {/* Personnel Cards */}

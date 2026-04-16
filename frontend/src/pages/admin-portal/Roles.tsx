@@ -3,6 +3,7 @@ import { PageHeader }  from '../../components/ui/PageHeader';
 import { Card, CardHeader } from '../../components/ui/Card';
 import { Badge }       from '../../components/ui/Badge';
 import { Btn }         from '../../components/ui/Btn';
+import { useToast }    from '../../contexts/ToastContext';
 
 const ROLES = [
   { name: 'Super Admin',       desc: 'Full system access, user, school & billing management',                 users: 1,  color: '#6366f1', perms: ['all'] },
@@ -32,15 +33,33 @@ const ALL_PERMS = [
 ];
 
 export default function AdminRoles() {
-  const [selected, setSelected] = useState<string | null>(null);
+  const { toast } = useToast();
+  const [selected,  setSelected]  = useState<string | null>(null);
+  // editedPerms tracks per-role permission overrides in local state
+  const [editedPerms, setEditedPerms] = useState<Record<string, string[]>>(
+    () => Object.fromEntries(ROLES.map(r => [r.name, [...r.perms]]))
+  );
+
   const role = ROLES.find(r => r.name === selected);
+  const currentPerms = selected ? (editedPerms[selected] ?? []) : [];
+
+  const togglePerm = (perm: string) => {
+    if (!selected) return;
+    setEditedPerms(prev => {
+      const perms = prev[selected] ?? [];
+      return {
+        ...prev,
+        [selected]: perms.includes(perm) ? perms.filter(p => p !== perm) : [...perms, perm],
+      };
+    });
+  };
 
   return (
     <div>
       <PageHeader
         title="Roles & Permissions"
         subtitle="Manage what each portal role can see and do"
-        actions={[{ label: '+ New Role', onClick: () => {}, variant: 'primary' }]}
+        actions={[{ label: '+ New Role', onClick: () => toast('Custom roles are managed at the system level. Contact support to add a new role.', 'info'), variant: 'primary' }]}
       />
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: 18 }}>
@@ -66,7 +85,7 @@ export default function AdminRoles() {
                   <div style={{ fontSize: 12, fontWeight: 700, color: '#1e293b' }}>{r.name}</div>
                   <div style={{ fontSize: 11, color: '#64748b', marginTop: 1 }}>{r.desc}</div>
                 </div>
-                <Badge variant="secondary" size="sm">{r.users} user{r.users !== 1 ? 's' : ''}</Badge>
+                <Badge color="gray">{r.users} user{r.users !== 1 ? 's' : ''}</Badge>
               </div>
             ))}
           </div>
@@ -83,13 +102,14 @@ export default function AdminRoles() {
               <CardHeader title="Permissions" />
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 {ALL_PERMS.map(p => {
-                  const hasIt = role.perms.includes(p) || role.perms.includes('all');
+                  const hasIt = currentPerms.includes(p) || currentPerms.includes('all');
                   return (
-                    <div key={p} style={{
+                    <div key={p} onClick={() => togglePerm(p)} style={{
                       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                      padding: '6px 10px', borderRadius: 7,
+                      padding: '6px 10px', borderRadius: 7, cursor: 'pointer',
                       background: hasIt ? '#f0fdf4' : '#fafafa',
                       border: `1px solid ${hasIt ? '#bbf7d0' : '#f1f5f9'}`,
+                      transition: 'background .15s, border .15s',
                     }}>
                       <span style={{ fontSize: 11, fontFamily: 'monospace', color: hasIt ? '#15803d' : '#94a3b8' }}>
                         {p}
@@ -100,7 +120,7 @@ export default function AdminRoles() {
                 })}
               </div>
               <div style={{ marginTop: 12 }}>
-                <Btn variant="primary" size="sm" onClick={() => {}}>Save Changes</Btn>
+                <Btn variant="primary" size="sm" onClick={() => toast(`Permissions for "${role?.name}" saved.`, 'success')}>Save Changes</Btn>
               </div>
             </Card>
           ) : (
