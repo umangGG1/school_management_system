@@ -3,7 +3,7 @@ import { PageHeader }  from '../../components/ui/PageHeader';
 import { Card, CardHeader } from '../../components/ui/Card';
 import { Btn }         from '../../components/ui/Btn';
 import { useToast }    from '../../contexts/ToastContext';
-import { schoolApi, type ApiSchool, type UpdateSchoolPayload } from '../../lib/api';
+import { schoolApi, adminStatsApi, academicApi, htBoardingApi, htStaffApi, type ApiSchool, type UpdateSchoolPayload } from '../../lib/api';
 
 const SEED: ApiSchool = {
   id: '', name: 'SMISSI Secondary School', code: 'SSS/NGA/001',
@@ -43,11 +43,29 @@ export default function AdminSchool() {
   const [editMode, setEdit]    = useState(false);
   const [saving,   setSaving]  = useState(false);
   const [offline,  setOffline] = useState(false);
+  const [stats,    setStats]   = useState({ students: 0, staff: 0, classes: 0, subjects: 0, dorms: 0, streams: 0 });
 
   useEffect(() => {
     schoolApi.get()
       .then(s => { setSchool(s); setOffline(false); })
       .catch(() => setOffline(true));
+
+    Promise.all([
+      adminStatsApi.getStats().catch(() => null),
+      academicApi.getClasses().catch(() => null),
+      academicApi.getSubjects().catch(() => null),
+      htBoardingApi.dorms().catch(() => null),
+      htStaffApi.list().catch(() => null),
+    ]).then(([adminStats, classes, subjects, dorms, staff]) => {
+      setStats({
+        students: adminStats?.totalStudents ?? 0,
+        staff:    staff?.length ?? adminStats?.activeUsers ?? 0,
+        classes:  classes?.length ?? 0,
+        subjects: subjects?.length ?? 0,
+        dorms:    dorms?.length ?? 0,
+        streams:  0,
+      });
+    });
   }, []);
 
   const val = (k: keyof UpdateSchoolPayload): string =>
@@ -137,12 +155,12 @@ export default function AdminSchool() {
           <CardHeader title="📊 Key Statistics" />
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12 }}>
             {[
-              { label: 'Students',    value: '1,204' },
-              { label: 'Staff',       value: '47'    },
-              { label: 'Classes',     value: '24'    },
-              { label: 'Subjects',    value: '24'    },
-              { label: 'Dormitories', value: '6'     },
-              { label: 'Streams',     value: '3'     },
+              { label: 'Students',    value: stats.students || '—' },
+              { label: 'Staff',       value: stats.staff    || '—' },
+              { label: 'Classes',     value: stats.classes  || '—' },
+              { label: 'Subjects',    value: stats.subjects || '—' },
+              { label: 'Dormitories', value: stats.dorms    || '—' },
+              { label: 'Streams',     value: school.streams ? school.streams.split(',').length : '—' },
             ].map(s => (
               <div key={s.label} style={{ textAlign: 'center', padding: '14px 8px', borderRadius: 10, background: '#f8fafc', border: '1px solid #e2e8f0' }}>
                 <div style={{ fontSize: 22, fontWeight: 800, color: '#6366f1' }}>{s.value}</div>

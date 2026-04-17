@@ -5,7 +5,7 @@ import { useToast }    from '../../contexts/ToastContext';
 import { calendarApi, type ApiCalendarEvent } from '../../lib/api';
 
 /* ─── Helpers ────────────────────────────────────────────── */
-const TYPE_OPTIONS = ['Meeting', 'Academic', 'Finance', 'Community', 'Event', 'Admin', 'Exam', 'Holiday'];
+const TYPE_OPTIONS = ['Meeting', 'Academic', 'Exam', 'Holiday', 'Sports', 'Cultural', 'Boarding', 'Other'];
 
 const chipFor = (e: ApiCalendarEvent): ReactElement => {
   const d    = new Date(e.date);
@@ -52,14 +52,12 @@ function AddEventModal({ open, onClose, onAdded }: {
     try {
       const created = await calendarApi.create({
         title, date, type: type.toUpperCase(),
-        isSchoolWide: true,
-        description: audience || undefined,
-        notes: notes || undefined,
+        description: [audience, notes].filter(Boolean).join(' · ') || undefined,
       });
       onAdded(created);
       toast('Event added to calendar ✓', 'success');
     } catch {
-      const fake: ApiCalendarEvent = { id: `tmp-${Date.now()}`, schoolId: '', title, date, endDate: null, type: type.toUpperCase(), isSchoolWide: true, classId: null, description: audience || null, notes: notes || null, isRecurring: false, createdById: '', createdAt: new Date().toISOString() };
+      const fake: ApiCalendarEvent = { id: `tmp-${Date.now()}`, schoolId: '', title, date, endDate: null, type: type.toUpperCase(), isSchoolWide: true, classId: null, description: [audience, notes].filter(Boolean).join(' · ') || null, notes: null, isRecurring: false, createdById: '', createdAt: new Date().toISOString() };
       onAdded(fake);
       toast('Event added (offline)', 'info');
     } finally { setSaving(false); setTitle(''); setAudience(''); setNotes(''); onClose(); }

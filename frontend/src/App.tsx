@@ -90,9 +90,26 @@ import CounsellorComms       from './pages/counsellor/Communications';
 import CounsellorPortals     from './pages/counsellor/Portals';
 import CounsellorSettings    from './pages/counsellor/Settings';
 
-// ── Stub portals (proper folder structure, simplified dashboards)
+// ── Deputy HM Portal
 import DeputyHMLayout        from './pages/deputy-hm/index';
 import DeputyHMDashboard     from './pages/deputy-hm/Dashboard';
+import DeputyDiscipline      from './pages/deputy-hm/Discipline';
+import DeputyDuties          from './pages/deputy-hm/Duties';
+import DeputyTimetable       from './pages/deputy-hm/Timetable';
+import DeputySLC             from './pages/deputy-hm/SLC';
+import DeputyCommunications  from './pages/deputy-hm/Communications';
+import DeputyPortals         from './pages/deputy-hm/Portals';
+
+// ── Student Portal
+import StudentLayout         from './pages/student/index';
+import StudentDashboard      from './pages/student/Dashboard';
+import StudentResults        from './pages/student/Results';
+import StudentTimetable      from './pages/student/Timetable';
+import StudentAssignments    from './pages/student/Assignments';
+import StudentFees           from './pages/student/Fees';
+import StudentPortals        from './pages/student/Portals';
+
+// ── Stub portals (skeleton dashboards only)
 import HODLayout             from './pages/hod/index';
 import HODDashboard          from './pages/hod/Dashboard';
 import NurseLayout           from './pages/nurse/index';
@@ -101,8 +118,6 @@ import DormMasterLayout      from './pages/dorm-master/index';
 import DormMasterDashboard   from './pages/dorm-master/Dashboard';
 import SecurityLayout        from './pages/security/index';
 import SecurityDashboard     from './pages/security/Dashboard';
-import StudentLayout         from './pages/student/index';
-import StudentDashboard      from './pages/student/Dashboard';
 import ParentLayout          from './pages/parent/index';
 import ParentDashboard       from './pages/parent/Dashboard';
 
@@ -231,7 +246,13 @@ export default function App() {
             {/* ── Deputy HM ── */}
             <Route path="/deputy-hm" element={<DeputyHMLayout />}>
               <Route index element={<Navigate to="/deputy-hm/dashboard" replace />} />
-              <Route path="dashboard" element={<DeputyHMDashboard />} />
+              <Route path="dashboard"      element={<DeputyHMDashboard />}    />
+              <Route path="discipline"     element={<DeputyDiscipline />}      />
+              <Route path="duties"         element={<DeputyDuties />}          />
+              <Route path="timetable"      element={<DeputyTimetable />}       />
+              <Route path="slc"            element={<DeputySLC />}             />
+              <Route path="communications" element={<DeputyCommunications />}  />
+              <Route path="portals"        element={<DeputyPortals />}         />
             </Route>
 
             {/* ── HOD ── */}
@@ -261,7 +282,12 @@ export default function App() {
             {/* ── Student ── */}
             <Route path="/student" element={<StudentLayout />}>
               <Route index element={<Navigate to="/student/dashboard" replace />} />
-              <Route path="dashboard" element={<StudentDashboard />} />
+              <Route path="dashboard"   element={<StudentDashboard />}   />
+              <Route path="results"     element={<StudentResults />}     />
+              <Route path="timetable"   element={<StudentTimetable />}   />
+              <Route path="assignments" element={<StudentAssignments />} />
+              <Route path="fees"        element={<StudentFees />}        />
+              <Route path="portals"     element={<StudentPortals />}     />
             </Route>
 
             {/* ── Parent ── */}

@@ -5,7 +5,7 @@ import { Chip } from '../../components/ui/Chip';
 import { AlertItem } from '../../components/ui/AlertItem';
 import { Modal } from '../../components/ui/Modal';
 import { useToast } from '../../contexts/ToastContext';
-import { htStudentsApi, type ApiStudentDiscipline } from '../../lib/api';
+import { htStudentsApi, htBoardingApi, academicApi, type ApiStudentDiscipline } from '../../lib/api';
 
 /* ─── Student Action Modal ───────────────────────────────── */
 function StudentActionModal({
@@ -99,25 +99,34 @@ const CLASSES = [
 /* ─── Main Page ──────────────────────────────────────────── */
 export default function HTStudents() {
   const navigate = useNavigate();
-  const [actionOpen,   setActionOpen]   = useState(false);
-  const [students,     setStudents]     = useState<any[]>([]);
-  const [totalCount,   setTotalCount]   = useState(1247);
-  const [discipline,   setDiscipline]   = useState<ApiStudentDiscipline[]>([]);
-  const [offline,      setOffline]      = useState(false);
+  const [actionOpen,    setActionOpen]    = useState(false);
+  const [students,      setStudents]      = useState<any[]>([]);
+  const [totalCount,    setTotalCount]    = useState(0);
+  const [boardingCount, setBoardingCount] = useState(0);
+  const [discipline,    setDiscipline]    = useState<ApiStudentDiscipline[]>([]);
+  const [classes,        setClasses]        = useState<any[]>([]);
+  const [classesOffline, setClassesOffline] = useState(false);
+  const [offline,        setOffline]        = useState(false);
+  const [loading,        setLoading]        = useState(true);
 
   useEffect(() => {
     Promise.all([
-      htStudentsApi.list(1, 50),
-      htStudentsApi.getEnrollmentCount(),
-      htStudentsApi.getAllDiscipline('PENDING'),
-    ])
-      .then(([listRes, countRes, discRes]) => {
-        if (listRes?.data && Array.isArray(listRes.data)) setStudents(listRes.data);
-        if (countRes?.total) setTotalCount(countRes.total);
-        if (Array.isArray(discRes)) setDiscipline(discRes);
-        setOffline(false);
-      })
-      .catch(() => setOffline(true));
+      htStudentsApi.list(1, 50).catch(() => null),
+      htStudentsApi.getEnrollmentCount().catch(() => null),
+      htStudentsApi.getAllDiscipline('PENDING').catch(() => null),
+      htBoardingApi.summary().catch(() => null),
+      academicApi.getClasses().catch(() => null),
+    ]).then(([listRes, countRes, discRes, boardingRes, classRes]) => {
+      const anyFailed = [listRes, countRes, discRes].every(r => r === null);
+      if (anyFailed) { setOffline(true); }
+
+      if (listRes?.data && Array.isArray(listRes.data)) setStudents(listRes.data);
+      if (countRes?.total != null) setTotalCount(countRes.total);
+      if (Array.isArray(discRes)) setDiscipline(discRes);
+      if (boardingRes?.totalBoarding != null) setBoardingCount(boardingRes.totalBoarding);
+      if (classRes === null) { setClassesOffline(true); }
+      else if (Array.isArray(classRes)) setClasses(classRes);
+    }).finally(() => setLoading(false));
   }, []);
 
   const handleRecorded = (d: ApiStudentDiscipline) => {
@@ -144,10 +153,10 @@ export default function HTStudents() {
       )}
 
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
-        <StatCard title="Total Students" value={totalCount.toLocaleString()} icon="👦" accent="blue" trend="S1–S6" trendType="flat" />
-        <StatCard title="Boarding Students" value="684" icon="🛏️" accent="green" trend="Boarding" trendType="flat" />
-        <StatCard title="Day Students" value="563" icon="🏠" accent="amber" trend="Day" trendType="flat" />
-        <StatCard title="Pending Discipline" value={discipline.length || 18} icon="⚠️" accent="red" trend="issues" trendType="down" />
+        <StatCard title="Total Students"    value={loading ? '…' : totalCount > 0 ? totalCount.toLocaleString() : '—'} icon="👦" accent="blue" trend="S1–S6" trendType="flat" />
+        <StatCard title="Boarding Students" value={loading ? '…' : boardingCount > 0 ? boardingCount : '—'}            icon="🛏️" accent="green" trend="Boarding" trendType="flat" />
+        <StatCard title="Day Students"      value={loading ? '…' : totalCount > 0 ? totalCount - boardingCount : '—'}  icon="🏠" accent="amber" trend="Day" trendType="flat" />
+        <StatCard title="Pending Discipline" value={loading ? '…' : discipline.length}                                  icon="⚠️" accent="red" trend="issues" trendType="down" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
@@ -158,14 +167,25 @@ export default function HTStudents() {
           </div>
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead><tr className="bg-gray-50 border-b border-gray-100">{['Class','Students','Streams','Attendance','View'].map(h=><th key={h} className="px-5 py-3 text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wider">{h}</th>)}</tr></thead>
+              <thead><tr className="bg-gray-50 border-b border-gray-100">{['Class','Stream','Active','View'].map(h=><th key={h} className="px-5 py-3 text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wider">{h}</th>)}</tr></thead>
               <tbody className="divide-y divide-gray-50">
-                {CLASSES.map(c => (
+                {loading && <tr><td colSpan={4} className="px-5 py-10 text-center text-[13px] text-gray-400">Loading…</td></tr>}
+                {!loading && classesOffline && CLASSES.map(c => (
                   <tr key={c.cls} className="hover:bg-gray-50/60 transition-colors">
                     <td className="px-5 py-3 text-[13px] font-semibold text-gray-800">{c.cls}</td>
-                    <td className="px-5 py-3 text-[13px] text-gray-600">{c.students}</td>
                     <td className="px-5 py-3 text-[13px] text-gray-400">{c.streams}</td>
                     <td className="px-5 py-3"><Chip variant={c.chipVariant}>{c.pct}%</Chip></td>
+                    <td className="px-5 py-3"><button onClick={() => navigate('/ht/results')} className="px-3 py-1.5 text-[12px] font-semibold text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200">View</button></td>
+                  </tr>
+                ))}
+                {!loading && !classesOffline && classes.length === 0 && (
+                  <tr><td colSpan={4} className="px-5 py-10 text-center text-[13px] text-gray-400">No classes configured yet</td></tr>
+                )}
+                {!loading && classes.length > 0 && classes.map((c: any) => (
+                  <tr key={c.id} className="hover:bg-gray-50/60 transition-colors">
+                    <td className="px-5 py-3 text-[13px] font-semibold text-gray-800">{c.name}</td>
+                    <td className="px-5 py-3 text-[13px] text-gray-400">{c.stream ?? '—'}</td>
+                    <td className="px-5 py-3"><Chip variant={c.isActive ? 'green' : 'gray'}>{c.isActive ? 'Active' : 'Inactive'}</Chip></td>
                     <td className="px-5 py-3"><button onClick={() => navigate('/ht/results')} className="px-3 py-1.5 text-[12px] font-semibold text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200">View</button></td>
                   </tr>
                 ))}
@@ -180,25 +200,24 @@ export default function HTStudents() {
             <h3 className="text-[15px] font-bold text-gray-900">⚠️ Pending Student Issues</h3>
             <button onClick={() => navigate('/ht/boarding')} className="text-[12px] font-semibold text-indigo-600 hover:bg-indigo-50 px-2 py-1 rounded-md">Dorm →</button>
           </div>
-          {discipline.length > 0 ? (
-            discipline.slice(0, 5).map(d => (
-              <AlertItem
-                key={d.id}
-                dot={d.status === 'ESCALATED' ? 'red' : 'amber'}
-                text={`${d.student?.firstName ?? 'Student'} ${d.student?.lastName ?? ''} — ${d.offence}`}
-                meta={`${d.actionType.replace(/_/g, ' ')} · ${d.status}`}
-                actionLabel="Review"
-                onAction={() => setActionOpen(true)}
-              />
-            ))
-          ) : (
-            <>
-              <AlertItem dot="red" text="3 students missing — not returned from exeat" meta="Boarding · S4B" actionLabel="Action" onAction={() => setActionOpen(true)} />
-              <AlertItem dot="amber" text="Okwir James — disciplinary case pending" meta="S3A · Fighting" actionLabel="Review" onAction={() => setActionOpen(true)} />
-              <AlertItem dot="amber" text="Nakibuule Sarah — fee arrears 68 days" meta="S5A · Parent contacted" actionLabel="Finance" onAction={() => navigate('/ht/finance')} />
-              <AlertItem dot="blue" text="Ssali Robert — medical leave request" meta="S6A · Nurse referred" actionLabel="Nurse" onAction={() => navigate('/ht/academic')} />
-            </>
-          )}
+          {loading
+            ? <div className="text-center py-6 text-gray-400 text-sm">Loading…</div>
+            : discipline.length === 0
+              ? <div className="text-center py-8 text-gray-400">
+                  <div className="text-3xl mb-2">✅</div>
+                  <div className="text-sm font-medium">No pending issues</div>
+                </div>
+              : discipline.slice(0, 5).map(d => (
+                  <AlertItem
+                    key={d.id}
+                    dot={d.status === 'ESCALATED' ? 'red' : 'amber'}
+                    text={`${d.student?.firstName ?? 'Student'} ${d.student?.lastName ?? ''} — ${d.offence}`}
+                    meta={`${d.actionType.replace(/_/g, ' ')} · ${d.status}`}
+                    actionLabel="Review"
+                    onAction={() => setActionOpen(true)}
+                  />
+                ))
+          }
         </div>
       </div>
 

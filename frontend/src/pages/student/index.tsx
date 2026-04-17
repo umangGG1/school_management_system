@@ -19,6 +19,12 @@ const config: PortalConfig = {
         { label: 'Assignments',  icon: '📋', path: '/student/assignments' },
       ],
     },
+    {
+      label: 'Finance',
+      items: [
+        { label: 'School Fees', icon: '💳', path: '/student/fees' },
+      ],
+    },
     { label: 'Admin', items: [{ label: 'Portals', icon: '🔗', path: '/student/portals' }] },
   ],
 };
