@@ -105,10 +105,10 @@ export class AcademicService {
     for (const cls of classes) {
       const stats = await this.assessmentRepo
         .createQueryBuilder('a')
-        .select('AVG(a.score / a.max_score * 100)', 'avg')
+        .select('AVG(a.score / a."maxScore" * 100)', 'avg')
         .addSelect('COUNT(DISTINCT a.student_id)', 'studentCount')
         .where(
-          'a.class_id = :classId AND a.school_id = :schoolId AND a.term = :term AND a.academic_year = :academicYear',
+          'a.class_id = :classId AND a.school_id = :schoolId AND a.term = :term AND a."academicYear" = :academicYear',
           { classId: cls.id, schoolId, term, academicYear },
         )
         .getRawOne();
@@ -117,7 +117,7 @@ export class AcademicService {
         .createQueryBuilder('a')
         .select('COUNT(DISTINCT a.student_id)', 'passCount')
         .where(
-          'a.class_id = :classId AND a.school_id = :schoolId AND a.term = :term AND a.academic_year = :academicYear AND (a.score / a.max_score * 100) >= 50',
+          'a.class_id = :classId AND a.school_id = :schoolId AND a.term = :term AND a."academicYear" = :academicYear AND (a.score / a."maxScore" * 100) >= 50',
           { classId: cls.id, schoolId, term, academicYear },
         )
         .getRawOne();

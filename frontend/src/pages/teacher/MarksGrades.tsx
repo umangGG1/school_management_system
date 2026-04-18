@@ -6,7 +6,13 @@ import { Badge }      from '../../components/ui/Badge';
 import { DataTable }  from '../../components/ui/DataTable';
 import { academicApi, htStudentsApi } from '../../lib/api';
 
-const EXAM_TYPES = ['End-term Exam', 'Mid-term Test', 'Practical', 'Assignment', 'Quiz'];
+const EXAM_TYPES = [
+  { label: 'End-term Exam',  value: 'FINAL'      },
+  { label: 'Mid-term Test',  value: 'MIDTERM'    },
+  { label: 'Practical',      value: 'PRACTICAL'  },
+  { label: 'Assignment',     value: 'ASSIGNMENT' },
+  { label: 'Class Test',     value: 'TEST'       },
+];
 
 interface Row { studentId: string; name: string; reg: string; score: number | ''; }
 
@@ -29,7 +35,7 @@ export default function MarksGrades() {
   const [subjects,   setSubjects]   = useState<any[]>([]);
   const [classId,    setClassId]    = useState('');
   const [subjectId,  setSubjectId]  = useState('');
-  const [examType,   setExamType]   = useState('End-term Exam');
+  const [examType,   setExamType]   = useState('FINAL');
   const [maxScore,   setMaxScore]   = useState(100);
   const [rows,       setRows]       = useState<Row[]>([]);
   const [loading,    setLoading]    = useState(true);
@@ -58,11 +64,11 @@ export default function MarksGrades() {
         academicApi.getMarks(cId, sId || undefined).catch(() => null),
       ]);
 
-      // Build marks lookup: studentId → score
+      // Build marks lookup: studentId → score (filter by type)
       const markMap: Record<string, number> = {};
       if (Array.isArray(marksRes)) {
         for (const m of marksRes) {
-          if (m.type === type.toUpperCase().replace(/\s+/g, '_') || m.assessmentType === type) {
+          if (m.type === type || m.assessmentType === type) {
             markMap[m.studentId] = m.score ?? m.marks ?? 0;
           }
         }
@@ -120,7 +126,7 @@ export default function MarksGrades() {
         subjectId: subjectId || undefined,
         term:          'Term 1',
         academicYear:  '2026',
-        type:          examType.toUpperCase().replace(/\s+/g, '_'),
+        type:          examType,
         maxScore,
       });
       toast(`${entries.length} marks saved ✓`, 'success');
@@ -172,7 +178,7 @@ export default function MarksGrades() {
           onChange={e => setExamType(e.target.value)}
           style={{ padding: '7px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 12, background: '#f8fafc' }}
         >
-          {EXAM_TYPES.map(e => <option key={e}>{e}</option>)}
+          {EXAM_TYPES.map(e => <option key={e.value} value={e.value}>{e.label}</option>)}
         </select>
         <span style={{ fontSize: 12, color: '#64748b' }}>
           Max marks:
@@ -202,7 +208,7 @@ export default function MarksGrades() {
       )}
 
       <Card>
-        <CardHeader title={`${selectedClass?.name ?? '—'} — ${selectedSubject?.name ?? 'All Subjects'} · ${examType} Gradebook`} />
+        <CardHeader title={`${selectedClass?.name ?? '—'} — ${selectedSubject?.name ?? 'All Subjects'} · ${EXAM_TYPES.find(e => e.value === examType)?.label ?? examType} Gradebook`} />
 
         {loading && <div style={{ textAlign: 'center', padding: '32px 0', color: '#94a3b8', fontSize: 13 }}>Loading…</div>}
 

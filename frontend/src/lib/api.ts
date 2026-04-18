@@ -647,7 +647,7 @@ export const htBoardingApi = {
   dorms:       () => req<any[]>('GET', '/boarding/dorms'),
   missingStudents: () => req<any[]>('GET', '/boarding/missing-students'),
   leaves:      (status?: string) =>
-    req<any[]>('GET', `/boarding/leaves${status ? '?status=' + status : ''}`),
+    req<any[]>('GET', `/boarding/leave${status ? '?status=' + status : ''}`),
 };
 
 /* ═══════════════════════════════════════════════════════════
@@ -693,6 +693,9 @@ export const academicApi = {
     const qs = classId ? `?classId=${classId}` : '';
     return req<any[]>('GET', `/academic/lesson-notes${qs}`);
   },
+  createLessonNote: (body: any) => req<any>('POST', '/academic/lesson-notes', body),
+  updateLessonNote: (id: string, body: any) => req<any>('PATCH', `/academic/lesson-notes/${id}`, body),
+  submitLessonNote: (id: string) => req<any>('PATCH', `/academic/lesson-notes/${id}/submit`),
 
   /* performance */
   getPerformance: (classId?: string, term?: string) => {
@@ -724,3 +727,14 @@ export const htSettingsApi = {
     req<any>('PATCH', '/users/me', payload),
 };
 
+
+/* ─── Colleagues (same-school users, accessible by all roles) ─ */
+export const colleaguesApi = {
+  list: () => req<ApiUser[]>('GET', '/users/colleagues'),
+};
+
+/* ─── HOD API ─────────────────────────────────────────────── */
+export const hodApi = {
+  getSyllabus:    () => req<any[]>('GET', '/hod/syllabus'),
+  updateSyllabus: (body: any) => req<any>('POST', '/hod/syllabus/update', body),
+};
