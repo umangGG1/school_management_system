@@ -127,9 +127,11 @@ function MessageModal({
 
 /* ─── Helpers ────────────────────────────────────────────── */
 const statusChip: Record<string, ReactElement> = {
-  Present: <Chip variant="green">Present</Chip>,
-  Absent:  <Chip variant="red">Absent</Chip>,
-  Late:    <Chip variant="amber">Late</Chip>,
+  Present:  <Chip variant="green">Present</Chip>,
+  Absent:   <Chip variant="red">Absent</Chip>,
+  Late:     <Chip variant="amber">Late</Chip>,
+  Active:   <Chip variant="blue">Active</Chip>,
+  Inactive: <Chip variant="gray">Inactive</Chip>,
 };
 
 const SEED_STAFF: ApiStaffMember[] = [
@@ -155,13 +157,16 @@ export default function HTStaff() {
   const [offline,     setOffline]     = useState(false);
 
   useEffect(() => {
-    Promise.all([htStaffApi.list(), htStaffApi.getAttendance()])
-      .then(([staffData, attData]) => {
-        if (Array.isArray(staffData) && staffData.length) setStaff(staffData);
-        if (attData && typeof attData.total === 'number') setAttendance(attData);
-        setOffline(false);
-      })
-      .catch(() => setOffline(true));
+    Promise.all([
+      htStaffApi.list().catch(() => null),
+      htStaffApi.getAttendance().catch(() => null),
+    ]).then(([staffData, attData]) => {
+      if (staffData === null && attData === null) { setOffline(true); return; }
+      if (Array.isArray(staffData) && staffData.length) setStaff(staffData);
+      else if (staffData !== null) setStaff([]);
+      if (attData && typeof attData.total === 'number') setAttendance(attData);
+      setOffline(false);
+    });
   }, []);
 
   return (
@@ -184,10 +189,10 @@ export default function HTStaff() {
       )}
 
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
-        <StatCard title="Present Today" value={attendance.present} icon="✅" accent="green" />
-        <StatCard title="Absent"        value={attendance.absent}  icon="❌" accent="red" />
-        <StatCard title="Late"          value={attendance.late}    icon="⏰" accent="amber" />
-        <StatCard title="On Leave"      value={attendance.onLeave} icon="📝" accent="purple" />
+        <StatCard title="Present Today" value={attendance.total === 0 ? '—' : attendance.present} icon="✅" accent="green" />
+        <StatCard title="Absent"        value={attendance.total === 0 ? '—' : attendance.absent}  icon="❌" accent="red" />
+        <StatCard title="Late"          value={attendance.total === 0 ? '—' : attendance.late}    icon="⏰" accent="amber" />
+        <StatCard title="On Leave"      value={attendance.total === 0 ? '—' : attendance.onLeave} icon="📝" accent="purple" />
       </div>
 
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
@@ -205,10 +210,13 @@ export default function HTStaff() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
+              {staff.length === 0 && (
+                <tr><td colSpan={6} className="px-5 py-12 text-center text-[13px] text-gray-400">No staff records found</td></tr>
+              )}
               {staff.map((s, i) => {
                 const initials = `${s.firstName[0]}${s.lastName[0]}`.toUpperCase();
                 const color = COLORS[i % COLORS.length];
-                const status = s.isActive ? 'Present' : 'Absent';
+                const status = s.attendanceStatus ?? (s.isActive ? 'Active' : 'Inactive');
                 return (
                   <tr key={s.id} className="hover:bg-gray-50/60 transition-colors">
                     <td className="px-5 py-3.5">

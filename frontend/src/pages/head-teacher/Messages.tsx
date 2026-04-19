@@ -94,7 +94,7 @@ function MessageModal({ msg, onClose, onReplySent }: {
 /* ─── Main Page ──────────────────────────────────────────── */
 export default function HTMessages() {
   const { toast }  = useToast();
-  const [inbox,    setInbox]    = useState<ApiMessage[]>(SEED);
+  const [inbox,    setInbox]    = useState<ApiMessage[] | null>(null); // null = loading
   const [selected, setSelected] = useState<ApiMessage | null>(null);
   const [readIds,  setReadIds]  = useState<Set<string>>(new Set());
   const [offline,  setOffline]  = useState(false);
@@ -108,10 +108,10 @@ export default function HTMessages() {
   useEffect(() => {
     messagesApi.inbox()
       .then(data => {
-        if (Array.isArray(data) && data.length) setInbox(data);
         setOffline(false);
+        setInbox(Array.isArray(data) ? data : []);
       })
-      .catch(() => setOffline(true));
+      .catch(() => { setOffline(true); setInbox(SEED); });
   }, []);
 
   const openMsg = async (m: ApiMessage) => {
@@ -122,7 +122,8 @@ export default function HTMessages() {
     }
   };
 
-  const unreadCount = inbox.filter(m => !m.isRead && !readIds.has(m.id)).length;
+  const displayInbox = inbox ?? [];
+  const unreadCount = displayInbox.filter(m => !m.isRead && !readIds.has(m.id)).length;
 
   const sendQuick = async () => {
     if (!qSubject.trim() || !qBody.trim()) { toast('Subject and message are required', 'warning'); return; }
@@ -162,7 +163,16 @@ export default function HTMessages() {
             )}
           </div>
           <div className="space-y-0">
-            {inbox.map((m) => {
+            {inbox === null && (
+              <div className="text-center py-8 text-gray-400 text-sm">Loading…</div>
+            )}
+            {inbox !== null && displayInbox.length === 0 && (
+              <div className="text-center py-10 text-gray-400">
+                <div className="text-3xl mb-2">📭</div>
+                <div className="text-sm font-medium">No messages yet</div>
+              </div>
+            )}
+            {displayInbox.map((m) => {
               const isUnread = !m.isRead && !readIds.has(m.id);
               const name = m.from ? `${m.from.firstName} ${m.from.lastName}` : 'System';
               const initials = name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
@@ -215,7 +225,7 @@ export default function HTMessages() {
       <MessageModal
         msg={selected}
         onClose={() => setSelected(null)}
-        onReplySent={() => messagesApi.inbox().then(d => { if (Array.isArray(d) && d.length) setInbox(d); }).catch(() => {})}
+        onReplySent={() => messagesApi.inbox().then(d => { if (Array.isArray(d)) setInbox(d); }).catch(() => {})}
       />
     </div>
   );

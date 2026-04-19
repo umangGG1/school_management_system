@@ -13,7 +13,8 @@ const AUDIENCE_MAP: Record<string, string> = {
 };
 const CATEGORY_MAP: Record<string, string> = {
   'School-Wide': 'GENERAL', 'Academic': 'ACADEMIC',
-  'Boarding': 'BOARDING', 'Finance': 'FINANCE',
+  'Boarding': 'BOARDING', 'Finance': 'ADMINISTRATIVE',
+  'Urgent': 'URGENT', 'Safety': 'SAFETY',
 };
 const typeFor = (cat: string): 'school' | 'academic' | 'admin' =>
   cat === 'ACADEMIC' ? 'academic' : cat === 'GENERAL' ? 'school' : 'admin';
@@ -64,7 +65,7 @@ function NewAnnouncementModal({ open, onClose, onCreated }: {
           <div>
             <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Category</label>
             <select value={category} onChange={e => setCategory(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none">
-              <option>School-Wide</option><option>Academic</option><option>Boarding</option><option>Finance</option>
+              <option>School-Wide</option><option>Academic</option><option>Boarding</option><option>Finance</option><option>Urgent</option><option>Safety</option>
             </select>
           </div>
           <div>
