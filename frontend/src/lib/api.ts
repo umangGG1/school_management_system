@@ -3,7 +3,7 @@
  * Base URL is read from VITE_API_URL env var (default: http://localhost:3000/api)
  */
 
-const BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api';
+export const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api';
 
 /* ─── Token helpers ──────────────────────────────────────────────── */
 export function getToken(): string | null {
@@ -36,7 +36,7 @@ async function req<T>(
     if (token) headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const res = await fetch(`${BASE}${path}`, {
+  const res = await fetch(`${API_BASE}${path}`, {
     method,
     headers,
     body: body ? JSON.stringify(body) : undefined,
@@ -659,4 +659,3 @@ export const htSettingsApi = {
   updateProfile: (payload: { firstName?: string; lastName?: string; email?: string; phone?: string }) =>
     req<any>('PATCH', '/users/me', payload),
 };
-

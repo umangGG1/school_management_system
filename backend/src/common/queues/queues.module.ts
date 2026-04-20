@@ -10,6 +10,7 @@ import { PdfProcessor }     from './processors/pdf.processor';
 import { SmsProcessor }     from './processors/sms.processor';
 import { EmailProcessor }   from './processors/email.processor';
 import { ArchivalProcessor } from './processors/archival.processor';
+import { getRedisConfigFromEnv } from '../config/runtime-config';
 
 import { QUEUE } from './queue.constants';
 export { QUEUE };
@@ -20,11 +21,8 @@ export { QUEUE };
     BullModule.forRootAsync({
       imports: [ConfigModule],
       inject:  [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        connection: {
-          host: config.get<string>('REDIS_HOST', 'localhost'),
-          port: config.get<number>('REDIS_PORT', 6379),
-        },
+      useFactory: (_config: ConfigService) => ({
+        connection: getRedisConfigFromEnv(),
         defaultJobOptions: {
           attempts: 3,
           backoff: { type: 'exponential', delay: 2000 },

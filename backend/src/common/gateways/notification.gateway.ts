@@ -9,11 +9,12 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { Logger } from '@nestjs/common';
+import { getAllowedOrigins } from '../config/runtime-config';
 
 @WebSocketGateway({
   namespace: '/notifications',
   cors: {
-    origin: process.env.FRONTEND_URL ?? true,
+    origin: getAllowedOrigins(),
     credentials: true,
   },
 })

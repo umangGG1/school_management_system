@@ -5,11 +5,10 @@ import { Badge }      from '../../components/ui/Badge';
 import { Btn }        from '../../components/ui/Btn';
 import { Modal }      from '../../components/ui/Modal';
 import { useToast }   from '../../contexts/ToastContext';
-import { termsApi, type ApiTerm } from '../../lib/api';
+import { API_BASE, termsApi, type ApiTerm } from '../../lib/api';
 
-const BASE = (import.meta as any).env?.VITE_API_URL ?? 'http://localhost:3000/api';
 const authFetch = (path: string) =>
-  fetch(`${BASE}${path}`, { headers: { Authorization: `Bearer ${localStorage.getItem('smissi_token')}` } })
+  fetch(`${API_BASE}${path}`, { headers: { Authorization: `Bearer ${localStorage.getItem('smissi_token')}` } })
     .then(r => r.json()).then((j: any) => j?.data ?? j);
 
 const SEED_TERMS: ApiTerm[] = [

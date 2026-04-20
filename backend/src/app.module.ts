@@ -48,9 +48,15 @@ import { SenModule }        from './sen/sen.module';
 import { GateModule }       from './gate/gate.module';
 import { EcaModule }        from './eca/eca.module';
 import { ParentsModule }    from './parents/parents.module';
+import { HealthController } from './health.controller';
+import {
+  getDatabaseConfigFromEnv,
+  getRedisConfigFromEnv,
+} from './common/config/runtime-config';
 
 
 @Module({
+  controllers: [HealthController],
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
@@ -65,41 +71,42 @@ import { ParentsModule }    from './parents/parents.module';
 
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        type: 'postgres',
-        host: config.get<string>('DB_HOST', 'localhost'),
-        port: config.get<number>('DB_PORT', 5432),
-        database: config.get<string>('DB_NAME', 'smissi'),
-        username: config.get<string>('DB_USER', 'smissi'),
-        password: config.get<string>('DB_PASSWORD', 'smissi_dev'),
-        entities: [__dirname + '/**/*.entity{.ts,.js}', __dirname + '/**/*.entities{.ts,.js}'],
-        migrations: [__dirname + '/database/migrations/*{.ts,.js}'],
-        // synchronize only in dev — set DB_SYNC=true in .env during development
-        synchronize:
-          config.get<string>('NODE_ENV') === 'development' &&
-          config.get<string>('DB_SYNC') === 'true',
-        logging: config.get<string>('NODE_ENV') === 'development',
-        // Connection pool — prevents exhaustion under load
-        extra: {
-          max: config.get<number>('DB_POOL_MAX', 20),
-          min: config.get<number>('DB_POOL_MIN', 2),
-          idleTimeoutMillis: 30000,
-          connectionTimeoutMillis: 5000,
-        },
-      }),
+      useFactory: (config: ConfigService) => {
+        const database = getDatabaseConfigFromEnv();
+
+        return {
+          type: 'postgres',
+          url: database.url,
+          host: database.url ? undefined : database.host,
+          port: database.url ? undefined : database.port,
+          database: database.url ? undefined : database.database,
+          username: database.url ? undefined : database.username,
+          password: database.url ? undefined : database.password,
+          ssl: database.ssl,
+          entities: [__dirname + '/**/*.entity{.ts,.js}', __dirname + '/**/*.entities{.ts,.js}'],
+          migrations: [__dirname + '/database/migrations/*{.ts,.js}'],
+          // synchronize only in dev — set DB_SYNC=true in .env during development
+          synchronize:
+            config.get<string>('NODE_ENV') === 'development' &&
+            config.get<string>('DB_SYNC') === 'true',
+          logging: config.get<string>('NODE_ENV') === 'development',
+          // Connection pool — prevents exhaustion under load
+          extra: {
+            max: config.get<number>('DB_POOL_MAX', 20),
+            min: config.get<number>('DB_POOL_MIN', 2),
+            idleTimeoutMillis: 30000,
+            connectionTimeoutMillis: 5000,
+          },
+        };
+      },
     }),
 
     // ── Redis Cache (global — AppCacheService injectable everywhere) ──────────
     CacheModule.registerAsync({
       isGlobal: true,
       inject: [ConfigService],
-      useFactory: async (config: ConfigService) => ({
-        store: await redisStore({
-          socket: {
-            host: config.get<string>('REDIS_HOST', 'localhost'),
-            port: config.get<number>('REDIS_PORT', 6379),
-          },
-        }),
+      useFactory: async (_config: ConfigService) => ({
+        store: await redisStore(getRedisConfigFromEnv()),
         ttl: 300_000, // 5 min default TTL in milliseconds
       }),
     }),

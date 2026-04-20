@@ -6,11 +6,10 @@ import { Chip }        from '../../components/ui/Chip';
 import { ProgressBar } from '../../components/ui/ProgressBar';
 import { Modal }       from '../../components/ui/Modal';
 import { useToast }    from '../../contexts/ToastContext';
-import { announcementsApi, calendarApi } from '../../lib/api';
+import { API_BASE, announcementsApi, calendarApi } from '../../lib/api';
 
-const BASE = (import.meta as any).env?.VITE_API_URL ?? 'http://localhost:3000/api';
 const authPost = (path: string, body: any) =>
-  fetch(`${BASE}${path}`, {
+  fetch(`${API_BASE}${path}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('smissi_token')}` },
     body: JSON.stringify(body),

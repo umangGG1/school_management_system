@@ -4,6 +4,7 @@ import { IoAdapter } from '@nestjs/platform-socket.io';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters/http-exception.filter';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
+import { getAllowedOrigins, getCorsOriginDelegate } from './common/config/runtime-config';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -31,12 +32,13 @@ async function bootstrap() {
 
   // CORS — allow the React frontend and HTML portals to call the API
   app.enableCors({
-    origin: true,
+    origin: getCorsOriginDelegate(),
     credentials: true,
   });
 
   const port = process.env.PORT ?? 3000;
   await app.listen(port);
-  console.log(`SMISSI API running on http://localhost:${port}/api`);
+  console.log(`SMISSI API running on port ${port}`);
+  console.log(`Allowed CORS origins: ${getAllowedOrigins().join(', ')}`);
 }
 bootstrap();

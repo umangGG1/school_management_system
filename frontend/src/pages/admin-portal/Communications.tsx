@@ -4,18 +4,18 @@ import { Card, CardHeader } from '../../components/ui/Card';
 import { Badge }      from '../../components/ui/Badge';
 import { Btn }        from '../../components/ui/Btn';
 import { useToast }   from '../../contexts/ToastContext';
+import { API_BASE } from '../../lib/api';
 
 /* ─── Inline API for announcements ───────────────────────────────── */
-const BASE = (import.meta as any).env?.VITE_API_URL ?? 'http://localhost:3000/api';
 const auth  = () => ({ Authorization: `Bearer ${localStorage.getItem('smissi_token')}`, 'Content-Type': 'application/json' });
 
 const announcementsApi = {
   list: (): Promise<any[]> =>
-    fetch(`${BASE}/announcements`, { headers: auth() })
+    fetch(`${API_BASE}/announcements`, { headers: auth() })
       .then(r => r.json())
       .then((j: any) => Array.isArray(j) ? j : j?.data ?? []),
-  create: (body: { title: string; body: string; audience: string }): Promise<any> =>
-    fetch(`${BASE}/announcements`, { method: 'POST', headers: auth(), body: JSON.stringify(body) })
+  create: (body: { title: string; body: string; targetAudience: string }): Promise<any> =>
+    fetch(`${API_BASE}/announcements`, { method: 'POST', headers: auth(), body: JSON.stringify(body) })
       .then(r => r.json()),
 };
 
