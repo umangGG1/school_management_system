@@ -35,6 +35,10 @@ async function bootstrap() {
     credentials: true,
   });
 
+  // Railway health check (outside /api prefix)
+  const httpAdapter = app.getHttpAdapter();
+  httpAdapter.get('/healthz', (_req: any, res: any) => res.send('ok'));
+
   const port = process.env.PORT ?? 3000;
   await app.listen(port);
   console.log(`SMISSI API running on http://localhost:${port}/api`);
