@@ -2,13 +2,18 @@ import 'reflect-metadata';
 import { DataSource } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 
+const databaseUrl = process.env.DATABASE_PUBLIC_URL ?? process.env.DATABASE_URL;
 const AppDataSource = new DataSource({
   type: 'postgres',
-  host: process.env.DB_HOST ?? 'localhost',
-  port: Number(process.env.DB_PORT ?? 5432),
-  database: process.env.DB_NAME ?? 'smissi',
-  username: process.env.DB_USER ?? 'smissi',
-  password: process.env.DB_PASSWORD ?? 'smissi_dev',
+  ...(databaseUrl
+    ? { url: databaseUrl, ssl: { rejectUnauthorized: false } }
+    : {
+        host: process.env.DB_HOST ?? 'localhost',
+        port: Number(process.env.DB_PORT ?? 5432),
+        database: process.env.DB_NAME ?? 'smissi',
+        username: process.env.DB_USER ?? 'smissi',
+        password: process.env.DB_PASSWORD ?? 'smissi_dev',
+      }),
   entities: [__dirname + '/../../**/*.entity{.ts,.js}', __dirname + '/../../**/*.entities{.ts,.js}'],
   synchronize: true,
   logging: false,
