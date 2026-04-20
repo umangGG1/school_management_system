@@ -35,6 +35,15 @@ export class UsersController {
     return { ...this.usersService.toPublic(user), activeRole: payload.activeRole };
   }
 
+  /* ── GET /api/users/colleagues — any authenticated user (same school) ── */
+  @Get('colleagues')
+  async getColleagues(@CurrentUser() payload: JwtPayload) {
+    const users = await this.usersService.findAllBySchool(payload.schoolId);
+    return users
+      .filter(u => u.id !== payload.sub)
+      .map(u => this.usersService.toPublic(u));
+  }
+
   /* ── GET /api/users — SUPER_ADMIN only ──────────────────────────── */
   @Get()
   @UseGuards(RolesGuard)

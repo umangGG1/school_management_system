@@ -32,7 +32,7 @@ export class MedicalService {
     const qb = this.visitRepo.createQueryBuilder('v')
       .select('v.status', 'status')
       .addSelect('COUNT(*)', 'count')
-      .where('v.school_id = :schoolId AND DATE(v.visit_date) = :today', { schoolId, today })
+      .where('v.school_id = :schoolId AND DATE(v."visitDate") = :today', { schoolId, today })
       .groupBy('v.status');
     const rows = await qb.getRawMany();
     const result: Record<string, number> = { ADMITTED: 0, OBSERVATION: 0, DISCHARGED: 0, REFERRED: 0 };
@@ -57,7 +57,7 @@ export class MedicalService {
     const end = new Date(year, month, 0, 23, 59, 59).toISOString();
     return this.visitRepo
       .createQueryBuilder('v')
-      .where('v.school_id = :schoolId AND v.visit_date BETWEEN :start AND :end', { schoolId, start, end })
+      .where('v.school_id = :schoolId AND v."visitDate" BETWEEN :start AND :end', { schoolId, start, end })
       .getMany();
   }
 

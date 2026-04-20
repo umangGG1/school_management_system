@@ -27,9 +27,9 @@ export class SecurityService {
       .createQueryBuilder('g')
       .leftJoinAndSelect('g.guard', 'guard')
       .where('g.school_id = :schoolId', { schoolId })
-      .orderBy('g.check_in_time', 'DESC');
+      .orderBy('g.checkInTime', 'DESC');
     if (date) {
-      qb.andWhere("DATE(g.check_in_time) = :date", { date });
+      qb.andWhere('DATE(g."checkInTime") = :date', { date });
     }
     return qb.getMany();
   }

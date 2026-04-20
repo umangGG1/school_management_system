@@ -375,7 +375,7 @@ export default function LandingPage() {
 
         {/* Professional scroll indicator — fades out once user scrolls */}
         <div style={{
-          position: 'absolute', bottom: 32, left: '50%', transform: 'translateX(-50%)',
+          position: 'absolute', bottom: 32, left: '50%',
           display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
           opacity: scrolled ? 0 : 1,
           transition: 'opacity 0.6s ease, transform 0.6s ease',

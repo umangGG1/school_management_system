@@ -647,7 +647,74 @@ export const htBoardingApi = {
   dorms:       () => req<any[]>('GET', '/boarding/dorms'),
   missingStudents: () => req<any[]>('GET', '/boarding/missing-students'),
   leaves:      (status?: string) =>
-    req<any[]>('GET', `/boarding/leaves${status ? '?status=' + status : ''}`),
+    req<any[]>('GET', `/boarding/leave${status ? '?status=' + status : ''}`),
+};
+
+/* ═══════════════════════════════════════════════════════════
+   ACADEMIC (shared — teacher, deputy HM, student)
+═══════════════════════════════════════════════════════════ */
+export const academicApi = {
+  /* timetable */
+  getTimetable:      (classId?: string) => {
+    const qs = classId ? `?classId=${classId}` : '';
+    return req<any[]>('GET', `/academic/timetable${qs}`);
+  },
+  createTimetable:   (body: any) => req<any>('POST', '/academic/timetable', body),
+  updateTimetable:   (id: string, body: any) => req<any>('PATCH', `/academic/timetable/${id}`, body),
+  deleteTimetable:   (id: string) => req<any>('DELETE', `/academic/timetable/${id}`),
+
+  /* classes & subjects */
+  getClasses:    () => req<any[]>('GET', '/academic/classes'),
+  getSubjects:   () => req<any[]>('GET', '/academic/subjects'),
+
+  /* marks */
+  getMarks:      (classId?: string, subjectId?: string) => {
+    const qs = new URLSearchParams();
+    if (classId) qs.set('classId', classId);
+    if (subjectId) qs.set('subjectId', subjectId);
+    return req<any[]>('GET', `/academic/marks${qs.toString() ? '?' + qs : ''}`);
+  },
+  getMyMarks:    () => req<any[]>('GET', '/academic/marks/me'),
+  submitMark:    (body: any) => req<any>('POST', '/academic/marks/submit', body),
+  bulkSubmit:    (body: any) => req<any>('POST', '/academic/marks/bulk-submit', body),
+
+  /* attendance */
+  markAttendance:    (body: any) => req<any>('POST', '/academic/attendance/mark', body),
+  getClassAttendance: (classId: string) => req<any[]>('GET', `/academic/attendance/class/${classId}`),
+  getMyAttendance:   () => req<any[]>('GET', '/academic/attendance/me'),
+
+  /* cover lessons */
+  getCoverLessons:   (date?: string) => req<any[]>('GET', `/academic/cover-lessons${date ? '?date=' + date : ''}`),
+  createCoverLesson: (body: any) => req<any>('POST', '/academic/cover-lessons', body),
+  assignCover:       (id: string, body: any) => req<any>('PATCH', `/academic/cover-lessons/${id}/assign`, body),
+
+  /* lesson notes */
+  getLessonNotes: (classId?: string) => {
+    const qs = classId ? `?classId=${classId}` : '';
+    return req<any[]>('GET', `/academic/lesson-notes${qs}`);
+  },
+  createLessonNote: (body: any) => req<any>('POST', '/academic/lesson-notes', body),
+  updateLessonNote: (id: string, body: any) => req<any>('PATCH', `/academic/lesson-notes/${id}`, body),
+  submitLessonNote: (id: string) => req<any>('PATCH', `/academic/lesson-notes/${id}/submit`),
+
+  /* performance */
+  getPerformance: (classId?: string, term?: string) => {
+    const qs = new URLSearchParams();
+    if (classId) qs.set('classId', classId);
+    if (term) qs.set('term', term);
+    return req<any>('GET', `/academic/performance${qs.toString() ? '?' + qs : ''}`);
+  },
+};
+
+/* ═══════════════════════════════════════════════════════════
+   STUDENT SELF — student-facing APIs
+═══════════════════════════════════════════════════════════ */
+export const studentSelfApi = {
+  getMyMarks:      () => req<any[]>('GET', '/academic/marks/me'),
+  getMyAttendance: () => req<any[]>('GET', '/academic/attendance/me'),
+  getTimetable:    () => req<any[]>('GET', '/academic/timetable'),
+  getMyBalance:    () => req<any>('GET', '/finance/balance/me'),
+  getMyInvoices:   () => req<any[]>('GET', '/finance/invoices'),
 };
 
 /* ─── HT Profile & Settings (re-exported for clarity) ────── */
@@ -658,4 +725,16 @@ export const htSettingsApi = {
   getProfile:   () => req<any>('GET', '/users/me'),
   updateProfile: (payload: { firstName?: string; lastName?: string; email?: string; phone?: string }) =>
     req<any>('PATCH', '/users/me', payload),
+};
+
+
+/* ─── Colleagues (same-school users, accessible by all roles) ─ */
+export const colleaguesApi = {
+  list: () => req<ApiUser[]>('GET', '/users/colleagues'),
+};
+
+/* ─── HOD API ─────────────────────────────────────────────── */
+export const hodApi = {
+  getSyllabus:    () => req<any[]>('GET', '/hod/syllabus'),
+  updateSyllabus: (body: any) => req<any>('POST', '/hod/syllabus/update', body),
 };
